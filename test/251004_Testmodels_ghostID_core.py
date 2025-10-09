@@ -166,6 +166,8 @@ if __name__ == "__main__":
         
         step = 0.1
         direction = eigVecs[i][:, idxmin]
+        
+        
         new_pos = qminima[i] + step * direction
         plt.scatter(*new_pos, marker='x',color='red')
         new_pos = qminima[i] - step * direction

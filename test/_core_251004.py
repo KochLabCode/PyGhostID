@@ -138,7 +138,7 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
             ghostCheck = False
             
             t_ghost = i * dt  # time at which a potential ghost was found
-            dur_ghost = pk_props["widths"][np.where(idx_minima==i)[0][0]] # trapping time
+            dur_ghost = pk_props["widths"][np.where(idx_minima==i)[0][0]]*dt # trapping time
             
             qmin_xyz = trajectory[i] # position of Q_minimum in phase space 
             
