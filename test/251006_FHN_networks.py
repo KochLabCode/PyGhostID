@@ -42,19 +42,54 @@ pca = PCA(n_components)
 options = {"node_color": "lightblue", "node_size": 220, "linewidths": 0.1, "width": 0.3}
 
 
+# def FHN_coupledjx(t, x, para_model):
+#     a, b, eps, K, A = para_model
+#     n = A.shape[0]
+#     u = x[:n]
+#     v = x[n:]
+
+#     D = jnp.sum(A, axis=1)
+#     L = jnp.diag(D) - A
+
+#     du = u - u**3 - v - K * (L @ u)
+#     dv = eps * (u - b * v + a)
+
+#     return np.concatenate([np.array(du), np.array(dv)])  # return as numpy for solve_ivp
+
+
 def FHN_coupledjx(t, x, para_model):
     a, b, eps, K, A = para_model
     n = A.shape[0]
     u = x[:n]
     v = x[n:]
 
-    D = jnp.sum(A, axis=1)
-    L = jnp.diag(D) - A
-
-    du = u - u**3 - v - K * (L @ u)
+    du = u - u**3 - v + K * (A @ v)
     dv = eps * (u - b * v + a)
 
     return np.concatenate([np.array(du), np.array(dv)])  # return as numpy for solve_ivp
+
+
+
+# def FHN_coupledjx(t, x, para_model):
+#     a, b, eps, K, A = para_model
+#     n = A.shape[0]
+#     u = x[:n]
+#     v = x[n:]
+#     phi=jnp.pi/2-1
+
+#     Buu=jnp.cos(phi)
+#     Buv=jnp.sin(phi)
+#     Bvu=-jnp.sin(phi)
+#     Bvv=jnp.cos(phi)
+
+#     D = jnp.sum(A, axis=1)
+#     L = jnp.diag(D) - A
+
+#     du = u - u**3 - v - K * (L @ (Buu*u + Buv*v))
+#     dv = eps * (u - b * v + a) - K * (L @ (Bvu*u + Bvv*v))
+
+#     return np.concatenate([np.array(du), np.array(dv)])  # return as numpy for solve_ivp
+
 
 #%%%
 
@@ -63,12 +98,14 @@ def FHN_coupledjx(t, x, para_model):
 # N = 8
 # 3: single ghost and 3-ghost channel
 
-rs = 2
-np.random.seed(rs)
+# rs = 2
+# np.random.seed(rs)
+np.random.seed()
 
 # define network topology
-n = 15
-G = nx.erdos_renyi_graph(n, 1/np.sqrt(n), seed=rs, directed=False)
+n = 20
+# G = nx.erdos_renyi_graph(n, 1/np.sqrt(n), seed=rs, directed=False)
+G = nx.erdos_renyi_graph(n, 0.1, directed=True)
 A = nx.to_numpy_array(G)
 
 # Plot the network
@@ -83,20 +120,22 @@ nx.draw_networkx(
     edge_color="gray",
     font_size=10,
 )
-plt.title(f"Erdős–Rényi Graph (n={n}, p={1/np.sqrt(n):.3f})")
+plt.title(f"Erdős–Rényi Graph (n={n}, p={1/np.sqrt(2*n):.3f})")
 plt.axis("off")
 plt.show()
 
 
-#%%
-np.random.seed()
+# #%%
+# np.random.seed()
 
 # set some parameters
-K = 0.001
-dt = 0.02; t_end = 200; npts = int(t_end/dt); time = np.linspace(0,t_end,npts+1)
+K = 1
+dt = 0.02; t_end = 500; npts = int(t_end/dt); time = np.linspace(0,t_end,npts+1)
 
 ICs = np.random.rand(2*n)
 params = [0.815,3.5,0.2,K,A]
+
+# params = [0.2,0,0.05,K,A]
 
 #run simulation; available methods: RK23,RK45,DOP853,Radau, BDF, LSODA
 solution = solve_ivp(FHN_coupledjx, (0,t_end),ICs, rtol=1.e-6, atol=1.e-6,t_eval=time,args=([params]), method='RK45') 
@@ -122,15 +161,17 @@ ax.set_xlabel('time'); ax.set_ylabel('value');
 
 #%% plot PCA
 
-sol_pca = pca.fit_transform(solution.y[:,::4].T).T 
+# sol_pca = pca.fit_transform(solution.y[:,::4].T).T 
 
-#%%
-fig = plt.figure(figsize=(12,4))
-ax = fig.add_subplot(1,1,1, projection='3d')
-fun.plot_tc_phasespace_colored(ax,sol_pca[:,1000:],[0,1,2],fileName='test',axlabels=['PCA1','PCA2','PCA3'],mode='velocity',colormap='cool',saveAnimation=False)
+# #%%
+# fig = plt.figure(figsize=(12,4))
+# ax = fig.add_subplot(1,1,1, projection='3d')
+# fun.plot_tc_phasespace_colored(ax,sol_pca[:,1000:],[0,1,2],fileName='test',axlabels=['PCA1','PCA2','PCA3'],mode='velocity',colormap='cool',saveAnimation=False)
 
-ax.set_xlim(np.min([np.min(sol_pca[0,:]),0]),np.max([np.max(sol_pca[0,:]),1]));
-ax.set_ylim(np.min([np.min(sol_pca[1,:]),0]),np.max([np.max(sol_pca[1,:]),1]));
-ax.set_zlim(np.min([np.min(sol_pca[2,:]),0]),np.max([np.max(sol_pca[2,:]),1]));
+# ax.set_xlim(np.min([np.min(sol_pca[0,:]),0]),np.max([np.max(sol_pca[0,:]),1]));
+# ax.set_ylim(np.min([np.min(sol_pca[1,:]),0]),np.max([np.max(sol_pca[1,:]),1]));
+# ax.set_zlim(np.min([np.min(sol_pca[2,:]),0]),np.max([np.max(sol_pca[2,:]),1]));
 
-plt.tight_layout()
+# plt.tight_layout()
+
+# %%

@@ -60,7 +60,7 @@ def wunderling_model(t, Z, para_model):
 
 
 def wunderling_modeljx(t, Z, para_model):
-    print(np.round(t,3), end = '\r')
+    # print(np.round(t,3), end = '\r')
     
     # Unpack parameters
     d = para_model['d']
@@ -115,7 +115,157 @@ def icAtQmin(qmin,step,nlowest,model,params):
     return pos,eigVals,eigVecs
 
 
+def ghostBranch1D(ghost, model, model_params, par_nr, par_steps, dpar, t_end, dt, delta=0.5, icStep=0.1, mode="first",
+                             epsilon_gid=0.1,solve_ivp_method='RK45', rtol=1.e-3, atol=1.e-6, qmin_method="BFGS",qmin_tol=1e-6,**kwargs):
     
+    
+    
+    # ---- Parameters ----
+    peak_kwargs = kwargs.get("peak_kwargs", {})
+    ctrlOutputs = kwargs.get("ctrlOutputs", {})
+    model_batch = kwargs.get("batchModel", utils.make_batch_model(model, model_params))
+    
+    if "distQminThr" in kwargs:
+        distQminThr = kwargs["distQminThr"]
+    else:
+        distQminThr = np.inf 
+    
+    # ghostSeq_p = [ghost]
+    # parSeq = [model_params[par_nr]]
+    
+    ghostSeq_p = []
+    parSeq = []
+    
+    parNext = model_params[par_nr] # + dpar
+    try:
+        model_params_ = np.asarray(model_params).copy()
+    except:
+        model_params_ = model_params.copy()
+    # model_params_[par_nr] = parNext
+    ghost_ = ghost.copy()
+
+    
+    i = 0
+    while i < par_steps+1:
+        
+        print("iteration:",i, "par val:",parNext )
+        
+        x0 = ghost_["position"]
+        
+        qmin = fun.find_local_Qminimum(model, x0, model_params_, delta, tol_glob=qmin_tol,method=qmin_method)[0]
+        
+        # print(qmin)
+        
+        ic_plus, _ , _ = icAtQmin(qmin, icStep ,ghost_["dimension"],model,model_params_)
+        ic_minus, _ , _ = icAtQmin(qmin, -icStep ,ghost_["dimension"],model,model_params_)
+        
+        sol_plus = solve_ivp(model, (0,5*dt), jnp.real(ic_plus), t_eval=np.asarray(np.arange(0, 5*dt, dt)), rtol=rtol, atol=atol, args=([model_params_]), method=solve_ivp_method) 
+        sol_minus = solve_ivp(model, (0,5*dt), jnp.real(ic_minus), t_eval=np.asarray(np.arange(0, 5*dt, dt)), rtol=rtol, atol=atol, args=([model_params_]), method=solve_ivp_method) 
+        
+        # print(sol_plus.y.shape, qmin.shape)
+        
+        dist_ic_plus = np.linalg.norm(qmin-ic_plus)
+        dist_sol_plus = np.linalg.norm(qmin-sol_plus.y[:,-1])
+        
+        dist_ic_minus = np.linalg.norm(qmin-ic_minus)
+        dist_sol_minus= np.linalg.norm(qmin-sol_minus.y[:,-1])
+        
+        # print("distances:",dist_ic_plus, dist_sol_plus,dist_ic_minus, dist_sol_minus)
+        
+        if dist_sol_plus<dist_ic_plus:
+            ic_pick = ic_plus
+            # print("IC plus")
+        elif dist_sol_minus<dist_ic_minus:
+            ic_pick = ic_minus
+            # print("IC minus")
+        else: 
+            print("Error in chosing initial conditions around qmin.")
+            return
+        
+        ic_pick = jnp.real(ic_pick)
+       
+        sol = solve_ivp(model, (0,t_end), ic_pick, t_eval=np.asarray(np.arange(0, t_end, dt)), rtol=rtol, atol=atol, args=([model_params_]), method=solve_ivp_method)
+        
+        # plt.figure()
+        # plt.plot(sol.y[])
+        
+        plt.figure(figsize=(16*inCm,14*inCm))
+        # plt.title(f"$\\tau_1 = {para_model['Taus'][0]},\\tau_2 = {para_model['Taus'][1]}$")
+        ax = plt.gca()
+        U,V=funOld.vector_field(flow_model,grid_ss,dim='2D')    
+        ax.streamplot(Xg,Yg,U,V,density=0.8,color=[0.75,0.75,0.75,0.5],arrowsize=1.2,linewidth=1.1)
+
+
+        ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
+        ax.set_xlim(xmin,xmax);ax.set_ylim(ymin,ymax)
+
+        vmin = np.min(Q)   # Avoid zero or negative values
+        vmax = np.max(Q)
+        im = plt.imshow(Q.T, extent=(x_range.min(), x_range.max(), y_range.min(), y_range.max()),
+                        origin='lower', cmap='magma_r', norm=LogNorm(vmin=vmin, vmax=vmax))
+        plt.colorbar(im, label='Q value (log scale)')
+        
+        
+        plt.scatter(*ic_pick, color='r',label='IC')  # qminima
+         
+        plt.scatter(*qmin, color='b', label='qmin')  # qminima
+            
+            
+        ax.plot(sol.y[0,:],sol.y[1,:],'--r',lw=1)
+        
+        # ax.plot(sol_plus.y[0,:],sol_plus.y[1,:],'-og',lw=3)
+        # ax.plot(sol_minus.y[0,:],sol_minus.y[1,:],'-ob',lw=3)
+
+        # ax.set_xlim(-0.5,0.5)
+        # ax.set_ylim(-0.5,0.5)
+        plt.legend(loc='upper left')
+
+        ghostSeq = fun.ghostID(model, model_params_, dt, sol.y.T,
+                           epsilon_gid, peak_kwargs=peak_kwargs,
+                           batchModel=model_batch,ctrlOutputs=ctrlOutputs)
+        
+        if len(ghostSeq)>0:
+            
+            #append
+            if mode=="first":
+                distance = np.linalg.norm(ghostSeq[0]["position"]-qmin)
+                if distance < distQminThr:
+                    ghostSeq_p.append(ghostSeq[0])
+                    parSeq.append(parNext)
+            elif mode == "closest":
+                positions = np.array([ghostSeq[ii]["position"] for ii in range(len(ghostSeq))])
+                distances = np.linalg.norm(positions-qmin,axis=1)
+                idx_min = np.argmin(distances)
+                if distances[idx_min]<distQminThr:
+                    ghostSeq_p.append(ghostSeq[idx_min])
+                    parSeq.append(parNext)
+            else:
+                print("Unknown mode argument. Use default mode instead.")
+                mode = "first"
+                continue
+                
+            #update
+            parNext = parNext + dpar
+            model_params_[par_nr] = parNext
+            i+=1
+            
+        
+        else: 
+            print("No further ghosts found.")
+            break
+        
+        
+        
+        
+    
+    ghostPositions = np.asarray([ghostSeq_p[ii]["position"] for ii in range(len(ghostSeq_p))])
+    
+    
+    return ghostPositions, np.asarray(parSeq), ghostSeq_p
+    
+
+
+
 #%% ######################
 # Wunderling model #######
 ##########################
@@ -213,7 +363,117 @@ for i in range(len(qminima)):
 
     ghostSeqs.append(ghostSeq)
     
+
+#%% 
+gS_unified = fun.unifyIDs(ghostSeqs)
+
+# gS_unified = fun.unifyIDs(ghostSeqs)
+
+
+uniqueGhosts = fun.uniqueGhosts(gS_unified)
+
+plt.figure(figsize=(16*inCm,14*inCm))
+plt.title(f"$\\tau_1 = {para_model['Taus'][0]},\\tau_2 = {para_model['Taus'][1]}$")
+ax = plt.gca()
+
+U,V=funOld.vector_field(flow_model,grid_ss,dim='2D')    
+ax.streamplot(Xg,Yg,U,V,density=0.8,color=[0.75,0.75,0.75,0.5],arrowsize=1.2,linewidth=1.1)
+
+
+ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
+ax.set_xlim(xmin,xmax);ax.set_ylim(ymin,ymax)
+
+vmin = np.min(Q)   # Avoid zero or negative values
+vmax = np.max(Q)
+im = plt.imshow(Q.T, extent=(x_range.min(), x_range.max(), y_range.min(), y_range.max()),
+                origin='lower', cmap='magma_r', norm=LogNorm(vmin=vmin, vmax=vmax))
+plt.colorbar(im, label='Q value (log scale)')
+ 
+for i in range(len(uniqueGhosts)):
+    plt.scatter(*uniqueGhosts[i]["position"], color='w')  # qminima
+
+uniqueGhosts.pop(1)
+
+#%% wrapper
+
+def wunderling_modeljx(t, Z, para_model):
+    # print(np.round(t,3), end = '\r')
     
+    # Unpack parameters
+    d = para_model['d']
+    GMT  = para_model['GMT']
+    Tcrits = para_model['Tcrits'] 
+    Taus = para_model['Taus'] 
+    mat_inter = para_model['mat_inter'] 
+
+    # intrinsic = a * x * (1 - x**2)
+    intrinsic = -Z**3 + Z + np.sqrt(4/27)*GMT/Tcrits
+    # Coupling effects: sum over j of C_ij * x_j
+    coupling = d/10* mat_inter @ (Z + 1)
+    # Total derivative
+    dZdt = (intrinsic+coupling)/Taus
+
+    return jnp.array(dZdt)
+
+def wunderling_modeljx_listpara(t, Z, para_model):
+   
+    
+    # Unpack parameters
+    d, GMT, Tcrits, Taus, mat_inter = para_model
+    
+    para_model_ = {
+        "d": d,
+        "GMT": GMT,
+        "mat_inter": mat_inter,
+        "Tcrits": Tcrits,
+        "Taus": Taus
+        }   
+
+    return wunderling_modeljx(t, Z, para_model_)
+
+
+dt = 10
+t_eval = np.asarray(np.arange(0, 1e3, dt), dtype=np.float64)
+tF = t_eval[-1]
+
+pars = [para_model[k] for k in ["d", "GMT", "Tcrits", "Taus", "mat_inter"]]
+pars[1] = 1.61
+sol = solve_ivp(wunderling_modeljx_listpara, [0,tF], np.real(ic),  method='LSODA', 
+                                    args=(pars,), t_eval=t_eval)
+
+plt.figure()
+plt.plot(sol.t,sol.y[1,:],'-b',lw=1)
+
+#%% ghostContinuation
+
+pars = [para_model[k] for k in ["d", "GMT", "Tcrits", "Taus", "mat_inter"]]
+
+
+gpos0, pars0, gSeq0 =  ghostBranch1D(uniqueGhosts[0], wunderling_modeljx_listpara, pars, 1, 20, 0.1, 1e3, 5, delta=0.2, icStep=0.4, mode="closest", 
+                             epsilon_gid=0.1,solve_ivp_method='LSODA', qmin_method="BFGS",qmin_tol=1e-6,peak_kwargs={"prominence":0.1,"width":0},ctrlOutputs={"ctrl_qplot":True,"qplot_xscale":"linear","ctrl_evplot":False})
+
+gpos1, pars1, gSeq1 =  ghostBranch1D(uniqueGhosts[1], wunderling_modeljx_listpara, pars, 1, 20, 0.1, 1e3, 5, delta=0.2, icStep=0.4, mode="closest", 
+                             epsilon_gid=0.1,solve_ivp_method='LSODA', qmin_method="BFGS",qmin_tol=1e-6,peak_kwargs={"prominence":0.1,"width":0},ctrlOutputs={"ctrl_qplot":True,"qplot_xscale":"linear","ctrl_evplot":False})
+
+gpos2, pars2, gSeq2 =  ghostBranch1D(uniqueGhosts[2], wunderling_modeljx_listpara, pars, 1, 20, 0.1, 1e3, 5, delta=0.2, icStep=0.4, mode="closest", 
+                             epsilon_gid=0.1,solve_ivp_method='LSODA', qmin_method="BFGS",qmin_tol=1e-6,peak_kwargs={"prominence":0.1,"width":0},ctrlOutputs={"ctrl_qplot":True,"qplot_xscale":"linear","ctrl_evplot":False})
+
+
+
+#%% '
+
+plt.figure()
+plt.plot(pars0,gpos0[:,1],'--o',color='gray')
+plt.plot(pars1,gpos1[:,1],'-d',color='gray')
+plt.plot(pars2,gpos2[:,1],':x',color='gray')
+# plt.ylim(0,2.2)
+plt.ylabel('y');plt.xlabel("$\\Delta GMT$")
+
+# plt.figure()
+# plt.plot(pars1,[gSeq1[i]["duration"] for i in range(len(gSeq1))],'-o',color='gray')
+# # plt.ylim(0,2.2)
+# plt.ylabel('trapping time');plt.xlabel("$\\Delta GMT$")
+
 
 
 #%% ######################
@@ -310,7 +570,43 @@ for i in range(len(qminima)):
 
     ghostSeqs.append(ghostSeq)
     
+ghost_contStart = ghostSeq[0]
 
+#%% numerical test of parameter range
+
+plt.figure()
+
+
+dt = 0.01
+t_eval = np.asarray(np.arange(0, 20, dt), dtype=np.float64)
+tF = t_eval[-1]
+
+for i in range (1,10):
+
+    para_model = [eps,alpha-i*0.05]
+    
+    sol = solve_ivp(vanDerPol_2g, [0,tF], np.real(ic),  method='LSODA', 
+                                        args=(para_model,), t_eval=t_eval)
+    plt.plot(sol.t,sol.y[1,:],'-',lw=1,label=f"$\\alpha$={alpha-i*0.02}")
+
+
+
+#%% ghostContinuation
+
+gpos, pars, gSeq =  ghostBranch1D(ghost_contStart, vanDerPol_2g, para_model, 1, 20, -0.1, 10, 0.01, delta=0.2, icStep=0.6, mode="closest", 
+                             epsilon_gid=0.1,solve_ivp_method='LSODA', qmin_method="BFGS",qmin_tol=1e-6,peak_kwargs={"prominence":0.5,"width":0},ctrlOutputs={"ctrl_qplot":False,"qplot_xscale":"linear","ctrl_evplot":False})
+
+#%% '
+
+plt.figure()
+plt.plot(pars,gpos[:,1],'-o',color='gray')
+plt.ylim(0,2.2)
+plt.ylabel('y');plt.xlabel("$\\alpha$")
+
+plt.figure()
+plt.plot(pars,[gSeq[i]["duration"] for i in range(len(gSeq))],'-o',color='gray')
+# plt.ylim(0,2.2)
+plt.ylabel('trapping time');plt.xlabel("$\\alpha$")
 
 #%%
 
@@ -526,112 +822,6 @@ for i in range(len(qminima)):
     
     
 #%% ghostContinuation
-
-
-def ghostBranch1D(ghost, model, model_params, par_nr, par_steps, dpar, t_end, dt, delta=0.5, icStep=0.1,
-                             epsilon_gid=0.1,solve_ivp_method='RK45', rtol=1.e-6, atol=1.e-6, qmin_method="BFGS",qmin_tol=1e-6,**kwargs):
-    
-    # ---- Parameters ----
-    peak_kwargs = kwargs.get("peak_kwargs", {})
-    ctrlOutputs = kwargs.get("ctrlOutputs", {})
-    model_batch = kwargs.get("batchModel", utils.make_batch_model(model, model_params))
-    
-    ghostSeq_p = [ghost]
-    parSeq = [model_params[par_nr]]
-    
-    parNext = model_params[par_nr] + dpar
-    model_params_ = np.asarray(model_params).copy()
-    model_params_[par_nr] = parNext
-    ghost_ = ghost.copy()
-    
-    i = 0
-    while i < par_steps:
-        
-        x0 = ghost_["position"]
-        
-        qmin = fun.find_local_Qminimum(model, x0, model_params_, delta, tol_glob=qmin_tol,method=qmin_method)[0]
-        
-        ic_plus, _ , _ = icAtQmin(qmin, icStep ,ghost_["dimension"],model,model_params_)
-        ic_minus, _ , _ = icAtQmin(qmin, -icStep ,ghost_["dimension"],model,model_params_)
-        
-        sol_plus = solve_ivp(model, (0,5*dt), ic_plus, t_eval=np.asarray(np.arange(0, 5*dt, dt)), rtol=rtol, atol=atol, args=([model_params_]), method=solve_ivp_method) 
-        sol_minus = solve_ivp(model, (0,5*dt), ic_minus, t_eval=np.asarray(np.arange(0, 5*dt, dt)), rtol=rtol, atol=atol, args=([model_params_]), method=solve_ivp_method) 
-        
-        # print(sol_plus.y.shape, qmin.shape)
-        
-        dist_ic_plus = np.linalg.norm(qmin-ic_plus)
-        dist_sol_plus = np.linalg.norm(qmin-sol_plus.y[:,-1])
-        
-        dist_ic_minus = np.linalg.norm(qmin-ic_minus)
-        dist_sol_minus= np.linalg.norm(qmin-sol_minus.y[:,-1])
-        
-        # print(dist_ic_plus, dist_sol_plus,dist_ic_minus, dist_sol_minus)
-        
-        if dist_sol_plus<dist_ic_plus:
-            ic_pick = ic_plus
-            # print("IC plus")
-        elif dist_sol_minus<dist_ic_minus:
-            ic_pick = ic_minus
-            # print("IC minus")
-        else: 
-            print("Error in chosing initial conditions around qmin.")
-            return
-        
-        ic_pick = jnp.real(ic_pick)
-       
-        sol = solve_ivp(model, (0,t_end), ic_pick, t_eval=np.asarray(np.arange(0, t_end, dt)), rtol=rtol, atol=atol, args=([model_params_]), method=solve_ivp_method)
-        
-        # plt.figure(figsize=(16*inCm,14*inCm))
-        # # plt.title(f"$\\tau_1 = {para_model['Taus'][0]},\\tau_2 = {para_model['Taus'][1]}$")
-        # ax = plt.gca()
-        # U,V=funOld.vector_field(flow_model,grid_ss,dim='2D')    
-        # ax.streamplot(Xg,Yg,U,V,density=0.8,color=[0.75,0.75,0.75,0.5],arrowsize=1.2,linewidth=1.1)
-
-
-        # ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
-        # ax.set_xlim(xmin,xmax);ax.set_ylim(ymin,ymax)
-
-        # vmin = np.min(Q)   # Avoid zero or negative values
-        # vmax = np.max(Q)
-        # im = plt.imshow(Q.T, extent=(x_range.min(), x_range.max(), y_range.min(), y_range.max()),
-        #                 origin='lower', cmap='magma_r', norm=LogNorm(vmin=vmin, vmax=vmax))
-        # plt.colorbar(im, label='Q value (log scale)')
-         
-        # for i in range(1):
-        #     plt.scatter(*qminima[i], color='w')  # qminima
-            
-            
-        # ax.plot(sol.y[0,:],sol.y[1,:],'--r',lw=1)
-        
-        # ax.plot(sol_plus.y[0,:],sol_plus.y[1,:],'-og',lw=3)
-        # ax.plot(sol_minus.y[0,:],sol_minus.y[1,:],'-ob',lw=3)
-
-        # ax.set_xlim(-0.5,0.5)
-        # ax.set_ylim(-0.5,0.5)
-
-
-        ghostSeq = fun.ghostID(model, model_params_, dt, sol.y.T,
-                           epsilon_gid, peak_kwargs=peak_kwargs,
-                           batchModel=model_batch,ctrlOutputs=ctrlOutputs)
-        
-        if len(ghostSeq)>0:
-            #append
-            ghostSeq_p.append(ghostSeq[0])
-            parSeq.append(parNext)
-            #update
-            parNext = parNext + dpar
-            model_params_[par_nr] = parNext
-            i+=1
-        else: 
-            print("No further ghosts found.")
-            break
-        
-        
-    
-    ghostPositions = np.asarray([ghostSeq_p[ii]["position"] for ii in range(len(ghostSeq_p))])
-    
-    
-    return ghostPositions, np.asarray(parSeq), ghostSeq_p
 
 gpos, pars, gSeq =  ghostBranch1D(ghostSeq[0], saddleNodeBif_NF, para_model, 0, 10, 0.02, 20, 0.01, delta=0.2, icStep=0.1,
                              epsilon_gid=0.1,solve_ivp_method='RK45', rtol=1.e-6, atol=1.e-6, qmin_method="BFGS",qmin_tol=1e-6,peak_kwargs={"prominence":0.5,"width":0},ctrlOutputs={"ctrl_qplot":True,"qplot_xscale":"linear","ctrl_evplot":True})
