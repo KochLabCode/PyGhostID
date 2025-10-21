@@ -103,16 +103,55 @@ def FHN_coupledjx(t, x, para_model):
 np.random.seed()
 
 # define network topology
-n = 20
-# G = nx.erdos_renyi_graph(n, 1/np.sqrt(n), seed=rs, directed=False)
-G = nx.erdos_renyi_graph(n, 0.1, directed=True)
-A = nx.to_numpy_array(G)
+# n = 20
+# G = nx.erdos_renyi_graph(n, 0.1, directed=True)
+# A = nx.to_numpy_array(G)
+
+# Parameters
+n = 10          # number of nodes (neurons)
+k = 6           # mean degree (number of neighbors in the ring lattice)
+p = 0.1          # rewiring probability
+
+# Step 1: Generate undirected Watts–Strogatz small-world network
+G_undirected = nx.watts_strogatz_graph(n, k, p)
+
+# Step 2: Convert to directed network
+G_directed = nx.DiGraph()
+
+# Copy nodes
+G_directed.add_nodes_from(G_undirected.nodes())
+
+# Step 3: For each undirected edge, assign one or both directions
+for u, v in G_undirected.edges():
+    # 80% chance of being unidirectional (biological asymmetry)
+    if np.random.rand() < 0.8:
+        if np.random.rand() < 0.5:
+            G_directed.add_edge(u, v)
+        else:
+            G_directed.add_edge(v, u)
+    else:
+        # 20% chance to keep bidirectional connection
+        G_directed.add_edge(u, v)
+        G_directed.add_edge(v, u)
+
+
+A = nx.to_numpy_array(G_directed)
+
+p_inhibitory = 0.4
+
+# introduce inhibitory links
+for i in range(A.shape[0]):
+    for j in range(A.shape[1]):
+        if A[i,j] == 1:
+            if np.random.rand() < p_inhibitory:
+                A[i,j] = -1
+
 
 # Plot the network
 plt.figure(figsize=(6, 6))
-pos = nx.spring_layout(G, seed=rs)  # layout for visualization
+pos = nx.spring_layout(G_directed, seed=1)  # layout for visualization
 nx.draw_networkx(
-    G,
+    G_directed,
     pos=pos,
     with_labels=False,
     node_color="darkblue",
@@ -128,36 +167,34 @@ plt.show()
 # #%%
 # np.random.seed()
 
-# set some parameters
-K = 1
+#%% set some parameters
+K = 0.1
 dt = 0.02; t_end = 500; npts = int(t_end/dt); time = np.linspace(0,t_end,npts+1)
 
-ICs = np.random.rand(2*n)
+
 params = [0.815,3.5,0.2,K,A]
 
 # params = [0.2,0,0.05,K,A]
 
 #run simulation; available methods: RK23,RK45,DOP853,Radau, BDF, LSODA
-solution = solve_ivp(FHN_coupledjx, (0,t_end),ICs, rtol=1.e-6, atol=1.e-6,t_eval=time,args=([params]), method='RK45') 
 
-# plot timecourses
-fig = plt.figure(figsize=(12,4))
-ax = fig.add_subplot(1, 1, 1)
-ax.set_title('rs: '+ str(rs))
+for i in range(8):
+    ICs = np.random.rand(2*n)
+    solution = solve_ivp(FHN_coupledjx, (0,t_end),ICs, rtol=1.e-6, atol=1.e-6,t_eval=time,args=([params]), method='RK45') 
+
+    # plot timecourses
+    fig = plt.figure(figsize=(12,4))
+    ax = fig.add_subplot(1, 1, 1)
+    # ax.set_title('rs: '+ str(rs))
 
 
-u_sol = solution.y[:n,:]
-v_sol = solution.y[n:,:]
-for ii in range(n):
-    ax.plot(time,u_sol[ii,:],lw=0.75)
+    u_sol = solution.y[:n,:]
+    v_sol = solution.y[n:,:]
+    for ii in range(n):
+        ax.plot(time,u_sol[ii,:],lw=0.75)
 
-# cmap = mpl.cm.rainbow
-# bounds = list(np.linspace(0, n, n+1))
-# norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
-# plt.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ticks=np.linspace(1, n, n), label="node", ax=ax)
-
-ax.set_xlim(0,t_end);     
-ax.set_xlabel('time'); ax.set_ylabel('value');
+    ax.set_xlim(0,t_end);     
+    ax.set_xlabel('time'); ax.set_ylabel('value');
 
 #%% plot PCA
 
