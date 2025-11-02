@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "PyGhostID"
+version = "0.1.0"
+description = "A Python package for identifying ghosts in the vicinity of saddle-node bifurcations and composite ghost structures in dynamical systems."
+authors = [
+  { name="Daniel Koch", email="dkoch.research@protonmail.com" }
+]
+license = { text = "GNU GPL v3" }
+readme = "README.md"
+requires-python = ">=3.12.3"
+
+dependencies = [
+  "jax>=0.4.35",
+  "matplotlib>=3.10.7",
+  "networkx>=3.4.2",
+  "numpy>=2.3.4",
+  "scipy>=1.16.2",
+  "tqdm>=4.66.5"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/KochLabCode/PyGhostID"
+"Bug Tracker" = "https://github.com/KochLabCode/PyGhostID/issues"

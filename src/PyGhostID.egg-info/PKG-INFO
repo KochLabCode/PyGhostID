@@ -1,0 +1,18 @@
+Metadata-Version: 2.4
+Name: PyGhostID
+Version: 0.1.0
+Summary: A Python package for identifying ghosts in the vicinity of saddle-node bifurcations and composite ghost structures in dynamical systems.
+Author-email: Daniel Koch <dkoch.research@protonmail.com>
+License: GNU GPL v3
+Project-URL: Homepage, https://github.com/KochLabCode/PyGhostID
+Project-URL: Bug Tracker, https://github.com/KochLabCode/PyGhostID/issues
+Requires-Python: >=3.12.3
+Description-Content-Type: text/markdown
+Requires-Dist: jax>=0.4.35
+Requires-Dist: matplotlib>=3.10.7
+Requires-Dist: networkx>=3.4.2
+Requires-Dist: numpy>=2.3.4
+Requires-Dist: scipy>=1.16.2
+Requires-Dist: tqdm>=4.66.5
+
+To follow

@@ -231,3 +231,43 @@ def draw_custom_edges(G, pos, edgelist, color="red", head_length=10, head_width=
                 mutation_scale=1  # Set mutation_scale as requested
             )
             ax.add_patch(arrow)
+
+
+def qOnGrid(F, p, coords=None, dim=None, n_points=50, ranges=None, overrides=None, indexing="ij", jit=False):
+    if coords is None:
+        if dim is None:
+            test = F(0.0, jnp.zeros(1), p)
+            dim = test.shape[0]
+
+        if ranges is None:
+            ranges = [(-2.0, 2.0)]*dim
+        elif isinstance(ranges[0], (int,float)):
+            ranges = [ranges]*dim
+
+        if isinstance(n_points,int):
+            n_points = [n_points]*dim
+
+        coords = []
+        for d in range(dim):
+            n = n_points[d] if d<len(n_points) else n_points[-1]
+            r = ranges[d] if d<len(ranges) else ranges[-1]
+            if overrides and d in overrides:
+                if "n" in overrides[d]:
+                    n = overrides[d]["n"]
+                if "range" in overrides[d]:
+                    r = overrides[d]["range"]
+            coords.append(jnp.linspace(r[0], r[1], n))
+
+    meshes = jnp.meshgrid(*coords, indexing=indexing)
+    grid_points = jnp.stack(meshes, axis=-1)
+
+    def core(grid_points):
+        flat_pts = grid_points.reshape(-1, grid_points.shape[-1])
+        F_vmapped = jax.vmap(lambda pt: F(0.0, pt, p))
+        values = F_vmapped(flat_pts)
+        Q_flat = 0.5*jnp.sum(values**2, axis=-1)
+        return Q_flat.reshape(grid_points.shape[:-1])
+
+    core = jax.jit(core) if jit else core
+    return core(grid_points), grid_points
+

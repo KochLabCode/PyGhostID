@@ -16,7 +16,7 @@ from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 import networkx as nx
 from networkx.drawing.nx_agraph import graphviz_layout
-from _utils_251004 import *
+from _utils import *
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 import os
 import sys
@@ -317,7 +317,7 @@ def ghostID_phaseSpaceSample(model, model_params, t_start, t_end, dt, state_rang
                 ghostSeqs.append(res)
 
     # ---- Unify results ----
-    ghostSeqs_unified = unifyIDs(ghostSeqs, epsilon_uni)
+    ghostSeqs_unified = unify_IDs(ghostSeqs, epsilon_uni)
     return ghostSeqs_unified
 
 
@@ -408,10 +408,46 @@ def find_local_Qminimum(F, x0, p, delta=0.5, method='L-BFGS-B',
     
     return x_global_best, Q_global_best, result_global
 
+def qOnGrid(F, p, coords=None, dim=None, n_points=50, ranges=None, overrides=None, indexing="ij", jit=False):
+    if coords is None:
+        if dim is None:
+            test = F(0.0, jnp.zeros(1), p)
+            dim = test.shape[0]
 
+        if ranges is None:
+            ranges = [(-2.0, 2.0)]*dim
+        elif isinstance(ranges[0], (int,float)):
+            ranges = [ranges]*dim
+
+        if isinstance(n_points,int):
+            n_points = [n_points]*dim
+
+        coords = []
+        for d in range(dim):
+            n = n_points[d] if d<len(n_points) else n_points[-1]
+            r = ranges[d] if d<len(ranges) else ranges[-1]
+            if overrides and d in overrides:
+                if "n" in overrides[d]:
+                    n = overrides[d]["n"]
+                if "range" in overrides[d]:
+                    r = overrides[d]["range"]
+            coords.append(jnp.linspace(r[0], r[1], n))
+
+    meshes = jnp.meshgrid(*coords, indexing=indexing)
+    grid_points = jnp.stack(meshes, axis=-1)
+
+    def core(grid_points):
+        flat_pts = grid_points.reshape(-1, grid_points.shape[-1])
+        F_vmapped = jax.vmap(lambda pt: F(0.0, pt, p))
+        values = F_vmapped(flat_pts)
+        Q_flat = 0.5*jnp.sum(values**2, axis=-1)
+        return Q_flat.reshape(grid_points.shape[:-1])
+
+    core = jax.jit(core) if jit else core
+    return core(grid_points), grid_points
 ###############
 
-def ghostBranch1D(ghost, model, model_params, par_nr, par_steps, dpar, t_end, dt, delta=0.5, icStep=0.1, mode="first",
+def track_ghost_branch(ghost, model, model_params, par_nr, par_steps, dpar, t_end, dt, delta=0.5, icStep=0.1, mode="first",
                              epsilon_gid=0.1,solve_ivp_method='RK45', rtol=1.e-3, atol=1.e-6, qmin_method="BFGS",qmin_tol=1e-6,**kwargs):
     
     # ---- Parameters ----
@@ -510,47 +546,7 @@ def ghostBranch1D(ghost, model, model_params, par_nr, par_steps, dpar, t_end, dt
 
 ###############
 
-def qOnGrid(F, p, coords=None, dim=None, n_points=50, ranges=None, overrides=None, indexing="ij", jit=False):
-    if coords is None:
-        if dim is None:
-            test = F(0.0, jnp.zeros(1), p)
-            dim = test.shape[0]
-
-        if ranges is None:
-            ranges = [(-2.0, 2.0)]*dim
-        elif isinstance(ranges[0], (int,float)):
-            ranges = [ranges]*dim
-
-        if isinstance(n_points,int):
-            n_points = [n_points]*dim
-
-        coords = []
-        for d in range(dim):
-            n = n_points[d] if d<len(n_points) else n_points[-1]
-            r = ranges[d] if d<len(ranges) else ranges[-1]
-            if overrides and d in overrides:
-                if "n" in overrides[d]:
-                    n = overrides[d]["n"]
-                if "range" in overrides[d]:
-                    r = overrides[d]["range"]
-            coords.append(jnp.linspace(r[0], r[1], n))
-
-    meshes = jnp.meshgrid(*coords, indexing=indexing)
-    grid_points = jnp.stack(meshes, axis=-1)
-
-    def core(grid_points):
-        flat_pts = grid_points.reshape(-1, grid_points.shape[-1])
-        F_vmapped = jax.vmap(lambda pt: F(0.0, pt, p))
-        values = F_vmapped(flat_pts)
-        Q_flat = 0.5*jnp.sum(values**2, axis=-1)
-        return Q_flat.reshape(grid_points.shape[:-1])
-
-    core = jax.jit(core) if jit else core
-    return core(grid_points), grid_points
-
-
-
-def ghostConnections(gSeq):  
+def ghost_connections(gSeq):  
     """
     ##############################################################################################
     Takes list of ghost sequences and turns it into an adjacency matrix.
@@ -586,7 +582,7 @@ def ghostConnections(gSeq):
 
 
 
-def uniqueGhosts(gSeq):  
+def unique_ghosts(gSeq):  
     """
     ##############################################################################################
     Takes list of unified ghost sequences and returns a list of all unique ghosts
@@ -611,7 +607,7 @@ def uniqueGhosts(gSeq):
 
 
 
-def unifyIDs(Seqs, epsilon_SN_ghosts=0.1):
+def unify_IDs(Seqs, epsilon_SN_ghosts=0.1):
     """
     Unify ids across multiple sequences of transient ghost state objects found in timecourse simulations.
 
@@ -662,7 +658,7 @@ def unifyIDs(Seqs, epsilon_SN_ghosts=0.1):
 
 ######################################
 
-def drawNetwork(adj_matrix, nodeColMap, nlbls):
+def draw_network(adj_matrix, nodeColMap, nlbls):
 
     nw_dim = adj_matrix.shape[0]
     G = nx.from_numpy_array(adj_matrix.transpose(), create_using=nx.DiGraph)
