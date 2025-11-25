@@ -4,12 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "PyGhostID"
-version = "0.1.1"
+version = "0.1.3"
 description = "A Python package for identifying ghosts in the vicinity of saddle-node bifurcations and composite ghost structures in dynamical systems."
 authors = [
   { name="Daniel Koch", email="dkoch.research@protonmail.com" }
 ]
-license = { text = "GNU GPL v3" }
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.12.3"
 
