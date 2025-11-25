@@ -16,7 +16,7 @@ from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 import networkx as nx
 from networkx.drawing.nx_agraph import graphviz_layout
-from _utils import *
+from ._utils import *
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 import os
 import sys
