@@ -544,7 +544,7 @@ sol = solve_ivp(ghostNetwork, [0,tF], np.real(ic),  method='LSODA',
 Trj=sol.y.T
 ghostSeq = fun.ghostID(ghostNetwork,paraGNet,dt,Trj,0.05,peak_kwargs={"prominence":6,"width":100},ctrlOutputs={"ctrl_qplot":True,"qplot_xscale":"linear","ctrl_evplot":False}) #
    
-#%% Ghost continuation
+#%% Ghost continuation SN nf
 
         # model_params_[par_nr] = parNext
     
