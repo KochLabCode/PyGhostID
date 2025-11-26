@@ -197,12 +197,12 @@ for i in range(len(qminima)):
     
 
 #%% 
-gS_unified = gid.unifyIDs(ghostSeqs)
+gS_unified = gid.unify_IDs(ghostSeqs)
 
 # gS_unified = fun.unifyIDs(ghostSeqs)
 
 
-uniqueGhosts = gid.uniqueGhosts(gS_unified)
+uniqueGhosts = gid.unique_ghosts(gS_unified)
 
 plt.figure(figsize=(16*inCm,14*inCm))
 plt.title(f"$\\tau_1 = {para_model['Taus'][0]},\\tau_2 = {para_model['Taus'][1]}$")
@@ -281,13 +281,13 @@ plt.plot(sol.t,sol.y[1,:],'-b',lw=1)
 pars = [para_model[k] for k in ["d", "GMT", "Tcrits", "Taus", "mat_inter"]]
 
 
-gpos0, pars0, gSeq0 =  gid.ghostBranch1D(uniqueGhosts[0], wunderling_modeljx_listpara, pars, 1, 20, 0.1, 1e3, 5, delta=0.2, icStep=0.4, mode="closest", 
+gpos0, pars0, gSeq0 =  gid.track_ghost_branch(uniqueGhosts[0], wunderling_modeljx_listpara, pars, 1, 20, 0.1, 1e3, 5, delta=0.2, icStep=0.4, mode="closest", 
                              epsilon_gid=0.1,solve_ivp_method='LSODA', qmin_method="BFGS",qmin_tol=1e-6,peak_kwargs={"prominence":0.1,"width":0},ctrlOutputs={"ctrl_qplot":True,"qplot_xscale":"linear","ctrl_evplot":False})
 
-gpos1, pars1, gSeq1 =  gid.ghostBranch1D(uniqueGhosts[1], wunderling_modeljx_listpara, pars, 1, 20, 0.1, 1e3, 5, delta=0.2, icStep=0.4, mode="closest", 
+gpos1, pars1, gSeq1 =  gid.track_ghost_branch(uniqueGhosts[1], wunderling_modeljx_listpara, pars, 1, 20, 0.1, 1e3, 5, delta=0.2, icStep=0.4, mode="closest", 
                              epsilon_gid=0.1,solve_ivp_method='LSODA', qmin_method="BFGS",qmin_tol=1e-6,peak_kwargs={"prominence":0.1,"width":0},ctrlOutputs={"ctrl_qplot":True,"qplot_xscale":"linear","ctrl_evplot":False})
 
-gpos2, pars2, gSeq2 =  gid.ghostBranch1D(uniqueGhosts[2], wunderling_modeljx_listpara, pars, 1, 20, 0.1, 1e3, 5, delta=0.2, icStep=0.4, mode="closest", 
+gpos2, pars2, gSeq2 =  gid.track_ghost_branch(uniqueGhosts[2], wunderling_modeljx_listpara, pars, 1, 20, 0.1, 1e3, 5, delta=0.2, icStep=0.4, mode="closest", 
                              epsilon_gid=0.1,solve_ivp_method='LSODA', qmin_method="BFGS",qmin_tol=1e-6,peak_kwargs={"prominence":0.1,"width":0},ctrlOutputs={"ctrl_qplot":True,"qplot_xscale":"linear","ctrl_evplot":False})
 
 
@@ -300,3 +300,4 @@ plt.plot(pars1,gpos1[:,1],'-d',color='gray')
 plt.plot(pars2,gpos2[:,1],':x',color='gray')
 # plt.ylim(0,2.2)
 plt.ylabel('y');plt.xlabel("$\\Delta GMT$")
+# %%
