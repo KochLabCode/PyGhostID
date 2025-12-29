@@ -12,6 +12,56 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch
 from scipy.stats import qmc
 
+def iqr_sliding_filter(x, windowsize=7, k=1.5):
+    x = np.asarray(x, dtype=float)
+    y = x.copy()
+    n = len(x)
+
+    for i in range(n):
+        i0 = max(0, i - windowsize // 2)
+        i1 = min(n, i + windowsize // 2 + 1)
+
+        w = x[i0:i1]
+        q1, q3 = np.percentile(w, [25, 75])
+        iqr = q3 - q1
+
+        if iqr == 0:
+            continue
+
+        lower = q1 - k * iqr
+        upper = q3 + k * iqr
+
+        if x[i] < lower or x[i] > upper:
+            w_no_outlier = w[w != x[i]]
+            if w_no_outlier.size > 0:
+                y[i] = w_no_outlier.mean()
+
+    return y
+
+def sort_closest(x):
+    
+    x_ = np.zeros(x.shape)
+    x_[:,0] = x[:,0]
+    for t in range(0,x.shape[1]-1):
+        idcs_used = []
+
+        for j in range(0,x.shape[0]):
+
+            if t < 2:
+                d = np.abs(x[:,t+1]-x_[j,t])
+                idcs_sorted = np.argsort(d)
+            else:
+                    x_pred = x_[j, t] + (x_[j, t] - x_[j, t-1])
+                    d = np.abs(x[:, t+1] - x_pred)
+                    idcs_sorted = np.argsort(d)
+            for i in range(len(idcs_sorted)):
+                if idcs_sorted[i] not in idcs_used:
+                    idx = idcs_sorted[i]
+                    idcs_used.append(idx)
+                    break
+            x_[j,t+1] = x[idx,t+1]
+    return x_
+
 
 def sign_change(arr):
     """
@@ -35,37 +85,39 @@ def sign_change(arr):
 
 
     sign_change_occured = False
-    tryFit = False
+    tryOR = False
     for prev, curr in zip(arr, arr[1:]):
         if curr < prev:
-            print("Error: monotonicity violated. Trying linear fit.")
-            tryFit = True
+            print("Error in evaluating sign change of eigenvalues: monotonicity violated. Trying outlier removal...")
+            tryOR = True
             break         
         # 2) detect the one negative→positive jump
         if prev < 0 and curr > 0:
             if not sign_change_occured:
                 sign_change_occured = True
             else:
-                print("Error: more than one sign changes occured. Trying linear fit.")
+                print("Error in evaluating sign change of eigenvalues: more than one sign changes detected. Trying outlier removal...")
                 sign_change_occured = False
-                tryFit = True
+                tryOR = True
                 break
 
-    if tryFit:
-        
-        x = np.asarray(range(0,len(arr)))
-        
-        coeffs = np.polyfit(x, arr, 1)
-        arr_pred = np.polyval(coeffs, x)
-        
-        # R² calculation
-        ss_res = np.sum((arr - arr_pred) ** 2)
-        ss_tot = np.sum((arr - np.mean(arr)) ** 2)
-        r2 = 1 - ss_res/ss_tot
+    if tryOR:
+               
+        arr_ = iqr_sliding_filter(arr)
+        for prev, curr in zip(arr_, arr_[1:]):
+            if curr < prev:
+                print("... unsuccessful.")
+                break         
+            # 2) detect the one negative→positive jump
+            if prev < 0 and curr > 0:
+                if not sign_change_occured:
+                    sign_change_occured = True
+                    print("... success.")
+                else:
+                    print("... unsuccessful.")
+                    sign_change_occured = False
+                    break
 
-        if r2 >= 0.95 and coeffs[0] > 0:
-            sign_change_occured = True
-        
     return sign_change_occured
 
 
@@ -138,13 +190,14 @@ def make_jacfun(model, params):
     return jax.jit(J_fun)
 
 # ---------------- Fast slope calculation ----------------
-def slope_and_r2(y, dt):
+def slope_and_r2(y_, dt):
     """
     Compute slope and R² of linear regression of y vs time
     y: shape (N,)
     dt: time step
     """
-    N = len(y)
+    N = len(y_)
+    y = iqr_sliding_filter(y_)
     x = np.arange(N) * dt
     x_mean = np.mean(x)
     y_mean = np.mean(y)

@@ -215,16 +215,16 @@ for i in range (3):
                 alpha=1
             )
         
-        if mu == 0:
-            ax.scatter(
-                [np.sqrt(-mu)], [0],
-                s=14,          # dot size
-                c='m',
-                edgecolors='black',
-                marker='o',
-                alpha=1
-            )
-        
+    if mu == 0:
+        ax.scatter(
+            [np.sqrt(-mu)], [0],
+            s=14,          # dot size
+            c='m',
+            edgecolors='black',
+            marker='o',
+            alpha=1
+        )
+    
 
     # Define log scale range 
     vmin = 1e-3 

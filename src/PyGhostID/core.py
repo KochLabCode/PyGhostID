@@ -35,16 +35,15 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
                            are considered to be close enough to 0    
     epsilon_SN_ghosts    - distance below which ghosts are considered to be the same
     
-    OPTIONAL PARAMETERS
+    OPTIONAL PARAMETERS (kwargs)
     #####################################################################################################
     slopeLimits          - upper and lower limits for positive eigenvalue slopes
-    ctrlOutputs          - dict, enables control outputs for various quantities calculated by the algortihm
     peak_kwargs          - dict, additional arguments for scipy.signal.find_peaks
-    
+    (...)
+
     Version 0.8
     """
     
-         
     slopeLimits = [0, np.inf]
     if "slopeLimits" in kwargs:
         if np.all(kwargs["slopeLimits"] >= 0) and kwargs["slopeLimits"][0] < kwargs["slopeLimits"][1]:
@@ -64,8 +63,19 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
         model_batch = make_batch_model(model, params)
         Xs = model_batch(trajectory)  
 
+    if "ctrlOutputs" in kwargs:
+        if "return_ctrl_figs" in kwargs["ctrlOutputs"]:
+            return_ctrl_figs = kwargs["ctrlOutputs"]["return_ctrl_figs"]
+        else:
+            return_ctrl_figs = False
+    else:
+        return_ctrl_figs = False
+
     ctrl_qplot, qplot_xscale, qplot_yscale = get_ctrl_plot_settings(kwargs, "qplot")
     ctrl_evplot, evplot_xscale, evplot_yscale = get_ctrl_plot_settings(kwargs, "evplot")
+
+    if return_ctrl_figs:
+        ctrl_figures = []
             
     n = trajectory.shape[1]  # dimension of trajectory
     fullTransientSeq = []  # list of visited transient states to be filled
@@ -82,16 +92,21 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
     if ctrl_qplot:
         if not len(idx_minima)>0:
             t_axis = np.arange(len(Q_ts)) * dt
-            plt.figure()
-            plt.plot(t_axis, pQ, label="pQ(t)")        
-            plt.ylabel("pQ(t)")
-            plt.xlabel("t")
-            plt.xscale(qplot_xscale)
-            plt.yscale(qplot_yscale)
-            plt.legend()
-            plt.title("Detected Q-minima with prominences")
+            fig, ax = plt.subplots()
+            fig.set_size_inches(17/(2*2.54),17/(3*2.54))
+            ax.plot(t_axis, pQ, '-k', lw=0.8, label="pQ(t)")        
+            ax.set_ylabel("pQ(t)")
+            ax.set_xlabel("t")
+            ax.set_xscale(qplot_xscale)
+            ax.set_yscale(qplot_yscale)
+            ax.legend(fontsize = 9)
+            ax.set_title("Detected Q-minima with prominences",fontsize=12)
             plt.tight_layout()
-            plt.show()
+            if return_ctrl_figs:
+                ctrl_figures.append((fig,ax))
+                plt.close(fig)
+            else:
+                plt.show()
     
     # Precompile JAX Jacobian function
     J_fun = make_jacfun(model, params)
@@ -105,13 +120,12 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
         ghostCoordinates = []     # unique phase-space positions of all ghosts visited
         
         if ctrl_qplot:
-            plt.figure()
+
             t_axis = np.arange(len(Q_ts)) * dt
-            plt.plot(t_axis, pQ, label="pQ(t)")        
-    
-            plt.title("Detected Q-minima with prominences")
-            
-            plt.plot(idx_minima * dt, pQ[idx_minima], 'xr', label="Q-minima")
+            fig, ax = plt.subplots()
+            fig.set_size_inches(17/(2*2.54),17/(3*2.54))
+            ax.plot(t_axis, pQ, '-k', lw=0.8, label="pQ(t)")       
+            ax.plot(idx_minima * dt, pQ[idx_minima], 'xr', label="Q-minima")
             # Plot prominence lines
             if "prominences" in pk_props:
                 prominences = pk_props["prominences"]
@@ -120,18 +134,24 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
                     peak_val = pQ[idx]
                     base_val = peak_val - prom
                     # vertical line showing prominence
-                    plt.vlines(x, base_val, peak_val, color="gray", linestyle="--")
+                    ax.vlines(x, base_val, peak_val, color="gray", linestyle="--")
                     # add text next to line
-                    plt.text(x, base_val - 0.05 * prom, f"{prom:.2f}",
+                    ax.text(x, base_val - 0.05 * prom, f"{prom:.2f}",
                               ha="center", va="top", fontsize=9, color="gray")
                     
-            plt.ylabel("pQ(t)")
-            plt.xlabel("t")
+            ax.set_ylabel("pQ(t)")
+            ax.set_xlabel("t")
             plt.xscale(qplot_xscale)
             plt.yscale(qplot_yscale)
+            ax.legend(fontsize = 9)
+            ax.set_title("Detected Q-minima with prominences",fontsize=12)
             plt.tight_layout()
-            plt.legend()
-            plt.show()
+            if return_ctrl_figs:
+                ctrl_figures.append((fig,ax))
+                plt.close(fig)
+            else:
+                plt.show()
+    
             
         for i in idx_minima:
             
@@ -146,104 +166,119 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
             idcs_Ueps_qmin = kdtree.query_ball_point(qmin_xyz, epsilon_Qmin)
             idcs_Ueps_qmin = np.sort(np.asarray(idcs_Ueps_qmin, dtype=int))
             idcs_segment = trjSegment(idcs_Ueps_qmin, i)
-            
-            # Batch Jacobian + eigenvalue evaluation for segment
-            pts_segment = jnp.asarray(trajectory[idcs_segment])        # JAX array
-            J_batch = jax.vmap(J_fun)(pts_segment)                     # batch Jacobians
-            eigVals = jax.vmap(jnp.linalg.eigvals)(J_batch)            # eigenvalues
-            eigVals_real = np.real(np.asarray(eigVals))                # back to numpy for analysis
-                
-            # Determine eigenvalue crossings along the segment
-            ev_signChanges = [sign_change(eigVals_real[:, ii]) for ii in range(n)]
-            crossings = sum(ev_signChanges)
-            
-            # determine eigenvalue slopes
-            qualifyingSlopes = []
-            
-            if ctrl_evplot: r2s = []
-            for ii in range(n):
-                # Only consider eigenvalues with small mean real part along segment
-                if np.abs(np.average(eigVals_real[:, ii])) < evLimit:
-                    slope, r2 = slope_and_r2(eigVals_real[:, ii], dt)
-                    if ctrl_evplot: r2s.append(r2)
-                    if np.all((slope > slopeLimits[0]) & (slope < slopeLimits[1]) & (r2 >= 0.99)):
-                        qualifyingSlopes.append(ii)
 
-            # Check for ghost
+            # Check if trajectory leaves the epsilon environment
             leaves_eps_qmin_i = False
-            if crossings > 0 or len(qualifyingSlopes) > 0:
-                # Check if trajectory leaves the epsilon environment
-                dists = np.linalg.norm(trajectory[i:] - qmin_xyz, axis=1)
-                if np.any(dists > epsilon_Qmin):
-                    ghostCheck = True
-                    leaves_eps_qmin_i = True
-            
-            if ctrl_evplot:
-                n_eig = eigVals_real.shape[1]
-                fig, axes = plt.subplots(n_eig, 1, figsize=(8, 2*n_eig), sharex=True)
-                if n_eig == 1: axes = [axes]  # ensure axes is iterable
+            dists = np.linalg.norm(trajectory[i:] - qmin_xyz, axis=1)
+            if np.any(dists > epsilon_Qmin):
+                leaves_eps_qmin_i = True
                 
-                t_seg = np.arange(len(eigVals_real)) * dt
+            if leaves_eps_qmin_i:
+                # Batch Jacobian + eigenvalue evaluation for segment
+                pts_segment = jnp.asarray(trajectory[idcs_segment])        # JAX array
+                J_batch = jax.vmap(J_fun)(pts_segment)                     # batch Jacobians
+                eigVals = jax.vmap(jnp.linalg.eigvals)(J_batch)            # eigenvalues
+                eigVals_real = np.real(np.asarray(eigVals))                # back to numpy for analysis
+                    
+                # Determine eigenvalue crossings along the segment
+                ev_signChanges = [sign_change(eigVals_real[:, ii]) for ii in range(n)]
+                crossings = sum(ev_signChanges)
                 
-                for j, ax in enumerate(axes):
-                    ax.plot(t_seg, eigVals_real[:, j], '-ok', lw=1)
-                    ax.set_ylabel(f'λ{j+1}', fontsize=12)
-    
-                axes[-1].set_xlabel('Time along segment', fontsize=12)
-                plt.suptitle(f'Eigenvalues near Q-min at t={t_ghost:.3f}, ghost: {ghostCheck}, leaves Uɛ: {leaves_eps_qmin_i}\n'
-                              f'evSignChanges: {ev_signChanges}, qualifying slopes: {len(qualifyingSlopes)}, R²: {r2s}')
-                plt.xscale(evplot_xscale)
-                plt.yscale(evplot_yscale)
-                plt.tight_layout()
-                plt.show()
+                # determine eigenvalue slopes
+                qualifyingSlopes = []
                 
-            # If ghost found, characterize its dimension and check if it has been found previously
-            if ghostCheck:
-                ghostTimes.append(t_ghost)
-                gdim = max([crossings, len(qualifyingSlopes)])
+                if ctrl_evplot: r2s = []
+                for ii in range(n):
+                    # Only consider eigenvalues with small median real part along segment
+                    if np.abs(np.median(eigVals_real[:, ii])) < evLimit:
+                        slope, r2 = slope_and_r2(eigVals_real[:, ii], dt)
+                        if ctrl_evplot: r2s.append(r2)
+                        if np.all((slope > slopeLimits[0]) & (slope < slopeLimits[1]) & (r2 >= 0.99)):
+                            qualifyingSlopes.append(ii)
 
-                if len(ghostCoordinates) > 0:
-                    # Calculate distances to all previously found ghosts
-                    distances = np.asarray([np.linalg.norm(g - trajectory[i]) for g in ghostCoordinates])
+                # Check for ghost
+                if crossings > 0 or len(qualifyingSlopes) > 0:
+                        ghostCheck = True
                 
-                    if not any(d < epsilon_SN_ghosts for d in distances):  # current ghost has not been found previously
-                        ghostCoordinates.append(trajectory[i])
-                        ghost = { 
-                            "id": "G" + str(len(ghostCoordinates)),  # assign ID to the new ghost
-                            "time": t_ghost,
-                            "duration": dur_ghost,
-                            "position": trajectory[i],
-                            "dimension": gdim,
-                            "Q-value:": Q_ts[i],
-                            "Crossing_eigenvalues": np.where(np.array(ev_signChanges)==True)[0],
-                            "Qualifying slopes:":qualifyingSlopes
-                            }
-                    else:  # current ghost has already been found previously
-                        gidx = np.where(distances < epsilon_SN_ghosts)[0][0] + 1
+                if ctrl_evplot:
+                    n_eig = eigVals_real.shape[1]
+                    fig, axes = plt.subplots(n_eig, 1, figsize=(17/(2*2.54), 17/(4*2.54)*n_eig), sharex=True)
+                    if n_eig == 1: axes = [axes]  # ensure axes is iterable
+                    
+                    t_seg = np.arange(len(eigVals_real)) * dt
+                    
+                    for j, ax in enumerate(axes):
+                        ax.plot(t_seg, eigVals_real[:, j], '-ok',  markersize=1.5, lw=0.75)
+                        ax.set_ylabel(f'λ{j+1}')
+        
+                    axes[-1].set_xlabel('Time along segment')
+                    # plt.suptitle(f'Eigenvalues near Q-min at t={t_ghost:.3f}, ghost: {ghostCheck}, leaves Uɛ: {leaves_eps_qmin_i}\n'
+                    #             f'sign changes: {ev_signChanges}, qualifying slopes: {len(qualifyingSlopes)}, R²: {ri:.3f for ri in r2s}',fontsize=9)
+                    plt.suptitle(
+                    f"Eigenvalues near Q-min at t={t_ghost:.3f}, ghost: {ghostCheck}, leaves Uɛ: {leaves_eps_qmin_i}\n"
+                    f"sign changes λi: {ev_signChanges}, qualifying slopes: {len(qualifyingSlopes)}, "
+                    f"R²: {[f'{ri:.3f}' for ri in r2s]}", fontsize=9)
+                    plt.xscale(evplot_xscale)
+                    plt.yscale(evplot_yscale)
+                    plt.tight_layout()
+                    if return_ctrl_figs:
+                        ctrl_figures.append((fig,axes))
+                        plt.close(fig)
+                    else:
+                        plt.show()
+        
+                    
+                # If ghost found, characterize its dimension and check if it has been found previously
+                if ghostCheck:
+                    ghostTimes.append(t_ghost)
+                    gdim = max([crossings, len(qualifyingSlopes)])
+
+                    if len(ghostCoordinates) > 0:
+                        # Calculate distances to all previously found ghosts
+                        distances = np.asarray([np.linalg.norm(g - trajectory[i]) for g in ghostCoordinates])
+                    
+                        if not any(d < epsilon_SN_ghosts for d in distances):  # current ghost has not been found previously
+                            ghostCoordinates.append(trajectory[i])
+                            ghost = { 
+                                "id": "G" + str(len(ghostCoordinates)),  # assign ID to the new ghost
+                                "time": t_ghost,
+                                "duration": dur_ghost,
+                                "position": trajectory[i],
+                                "dimension": gdim,
+                                "q-value:": Q_ts[i],
+                                "crossing_eigenvalues": np.where(np.array(ev_signChanges)==True)[0],
+                                "qualifying_slopes:":qualifyingSlopes
+                                }
+                        else:  # current ghost has already been found previously
+                            gidx = np.where(distances < epsilon_SN_ghosts)[0][0] + 1
+                            ghost = {
+                                "id": "G" + str(gidx),
+                                "time": t_ghost,
+                                "duration": dur_ghost,
+                                "position": trajectory[i],
+                                "dimension": gdim,
+                                "q-value:": Q_ts[i],
+                                "crossing_eigenvalues": np.where(np.array(ev_signChanges)==True)[0],
+                                "qualifying_slopes:":qualifyingSlopes
+                                }
+                        ghostSeq.append(ghost)
+                    else:  # No ghost previously found yet
                         ghost = {
-                            "id": "G" + str(gidx),
+                            "id": "G" + str(len(ghostCoordinates) + 1),
                             "time": t_ghost,
                             "duration": dur_ghost,
                             "position": trajectory[i],
                             "dimension": gdim,
-                            "Q-value:": Q_ts[i],
-                            "Crossing_eigenvalues": np.where(np.array(ev_signChanges)==True)[0],
-                            "Qualifying slopes:":qualifyingSlopes
+                            "q-value": Q_ts[i],
+                            "crossing_eigenvalues": np.where(np.array(ev_signChanges)==True)[0],
+                            "qualifying_slopes":qualifyingSlopes
                             }
-                    ghostSeq.append(ghost)
-                else:  # No ghost previously found yet
-                    ghost = {
-                        "id": "G" + str(len(ghostCoordinates) + 1),
-                        "time": t_ghost,
-                        "duration": dur_ghost,
-                        "position": trajectory[i],
-                        "dimension": gdim,
-                        "Q-value": Q_ts[i],
-                        "Crossing_eigenvalues": np.where(np.array(ev_signChanges)==True)[0],
-                        "Qualifying slopes":qualifyingSlopes
-                        }
-                    ghostSeq.append(ghost)
-                    ghostCoordinates.append(trajectory[i])
+                        ghostSeq.append(ghost)
+                        ghostCoordinates.append(trajectory[i])
+            else:
+                print("GhostID: Trajectory does not leave U_eps - stopping ghostID.")
+                break
+
 
         ############# STEP 2 - identify oscillatory transients #############################
         oscSeq = []
@@ -262,8 +297,11 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
             else:
                 i_t = np.where(oscTimes == t)[0]
                 fullTransientSeq.append(oscSeq[i_t[0]])
-        
-    return fullTransientSeq
+
+    if not(return_ctrl_figs):    
+        return fullTransientSeq
+    else:
+        return fullTransientSeq, ctrl_figures
 
 def ghostID_phaseSpaceSample(model, model_params, t_start, t_end, dt, state_ranges,
                              epsilon_gid=0.1, epsilon_uni=0.1, n_samples=50,
@@ -319,7 +357,6 @@ def ghostID_phaseSpaceSample(model, model_params, t_start, t_end, dt, state_rang
     # ---- Unify results ----
     ghostSeqs_unified = unify_IDs(ghostSeqs, epsilon_uni)
     return ghostSeqs_unified
-
 
 def find_local_Qminimum(F, x0, p, delta=0.5, method='L-BFGS-B',
                                n_global_iter=1000, tol_glob=0.01,tol_grad=1e-6, max_iter_local=500,

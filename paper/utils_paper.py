@@ -1,6 +1,8 @@
 
 import numpy as np
-from scipy.optimize import approx_fprime
+# from scipy.optimize import approx_fprime
+import jax 
+import jax.numpy as jnp
 
 
 def get_rcparams():
@@ -82,17 +84,70 @@ def qOnGrid(F, p, X_grid, Y_grid):
 
 def eigValsOnGrid(F, X_grid, Y_grid):
 
-        ev1 = np.zeros_like(X_grid)
-        ev2 = np.zeros_like(X_grid)
+        # ev1 = np.zeros_like(X_grid)
+        # ev2 = np.zeros_like(X_grid)
+        # J_fun = jax.jacfwd(F)
+        # J_fun = jax.jit(J_fun)
 
-        for i in range(X_grid.shape[0]):
-            for j in range(X_grid.shape[1]):
-                Pt = np.array([X_grid[i, j], Y_grid[i, j]])
+              
+        # # Batch Jacobian + eigenvalue evaluation for segment
+        # pts_segment = jnp.asarray(trajectory[idcs_segment])        # JAX array
+        # J_batch = jax.vmap(J_fun)(pts_segment)                     # batch Jacobians
+        # eigVals = jax.vmap(jnp.linalg.eigvals)(J_batch)            # eigenvalues
+        # eigVals_real = np.real(np.asarray(eigVals))                # back to numpy for analysis
+
+        # for i in range(X_grid.shape[0]):
+        #     for j in range(X_grid.shape[1]):
+        #         Pt = np.array([X_grid[i, j], Y_grid[i, j]])
                 
-                jac = approx_fprime(Pt,F,epsilon=1e-4)
-                ev1[i,j],ev2[i,j] = np.linalg.eigvals(jac)
+        #     # F = lambda x: model(0, x, params)
+                
+        #         ev1[i,j],ev2[i,j] = np.linalg.eigvals(jac)
+        #         # jac = approx_fprime(Pt,F,epsilon=1e-6)
+        #         # ev1[i,j],ev2[i,j] = np.linalg.eigvals(jac)
 
-        return ev1, ev2
+        #         # try:
+        #         #     jac = approx_fprime(Pt, F, epsilon=1e-8)
+
+        #         #     # Check Jacobian validity
+        #         #     if not np.isfinite(jac).all():
+        #         #         continue
+
+        #         #     eigs = np.linalg.eigvals(jac)
+        #         #     ev1[i, j], ev2[i, j] = eigs
+
+        #         # except Exception:
+        #         #     # catches LinAlgError, ValueError, etc.
+        #         #     continue
+
+        # return ev1, ev2
+    # Convert grids to JAX arrays
+    X = jnp.asarray(X_grid)
+    Y = jnp.asarray(Y_grid)
+
+    Nx, Ny = X.shape
+
+    # Flatten grid → (Npoints, 2)
+    pts = jnp.stack([X.ravel(), Y.ravel()], axis=1)
+
+    # Jacobian function
+    J_fun = jax.jacfwd(F)
+    J_fun = jax.jit(J_fun)
+
+    # Batched Jacobians and eigenvalues
+    J_batch = jax.vmap(J_fun)(pts)                    # (N, 2, 2)
+    eigvals = jax.vmap(jnp.linalg.eigvals)(J_batch)   # (N, 2)
+
+    # Reshape back to grid
+    # eigvals = eigvals.reshape(Nx, Ny, 2)
+    # ev1, ev2 = np.asarray(eigvals)
+
+    eigvals = np.asarray(eigvals).reshape(Nx, Ny, 2)
+    # Return as NumPy array
+    ev1 = eigvals[..., 0]
+    ev2 = eigvals[..., 1]
+
+    return ev1, ev2
 
 def noBackground(ax):
     ax.xaxis.pane.fill = False
@@ -104,3 +159,12 @@ def noBackground(ax):
     ax.zaxis.pane.set_edgecolor('w')
 
     ax.grid(False)
+
+    
+def euklideanVelocity(x,dt):
+    v = np.array([])
+    n = x.shape[0]
+    for i in range(1,n):
+        d = np.linalg.norm(x[i,:]-x[i-1,:])
+        v = np.append(v, d/dt)
+    return v
