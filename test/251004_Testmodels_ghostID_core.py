@@ -4,193 +4,194 @@ Created on Thu Jul 17 23:30:27 2025
 
 @author: Daniel Koch
 """
-if __name__ == "__main__":
+# if __name__ == "__main__":
    
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from scipy.signal import find_peaks
-    from scipy.integrate import solve_ivp
-    import networkx as nx
-    import os
-    import sys
-    import jax
-    import jax.numpy as jnp
-    from jax.nn import sigmoid
-    from jax import jacfwd
-    from matplotlib.colors import LogNorm
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.signal import find_peaks
+from scipy.integrate import solve_ivp
+import networkx as nx
+import os
+import sys
+import jax
+import jax.numpy as jnp
+from jax.nn import sigmoid
+from jax import jacfwd
+from matplotlib.colors import LogNorm
+
+#paths
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join( os.path.dirname( __file__ ), '..' ))
+
+import _core_251004 as fun
+import functions_v08 as funOld
     
-    #paths
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-    sys.path.append(os.path.join( os.path.dirname( __file__ ), '..' ))
+import _utils_251004 as utils
     
-    import _core_251004 as fun
-    import functions_v08 as funOld
-     
-    import _utils_251004 as utils
-     
+
+options = {"node_color": "lightblue", "node_size": 220, "linewidths": 0.1, "width": 0.3}
+inCm = 1/2.54 # convert inch to cm for plotting
+
+#%%
+def wunderling_model(t, Z, para_model):
+    Z = np.asarray(Z, dtype=np.float64) 
+    # print(np.round(t,3), end = '\r')
     
-    options = {"node_color": "lightblue", "node_size": 220, "linewidths": 0.1, "width": 0.3}
-    inCm = 1/2.54 # convert inch to cm for plotting
+    # Unpack parameters
+    d = para_model['d']
+    GMT  = para_model['GMT']
+    Tcrits = para_model['Tcrits'] 
+    Taus = para_model['Taus'] 
+    mat_inter = para_model['mat_inter'] 
+
+    # intrinsic = a * x * (1 - x**2)
+    intrinsic = -Z**3 + Z + np.sqrt(4/27)*GMT/Tcrits
+    # Coupling effects: sum over j of C_ij * x_j
+    coupling = d/10* mat_inter @ (Z + 1)
+    # Total derivative
+    dZdt = (intrinsic + coupling)/Taus
+
+    return np.asarray(dZdt)  
+
+
+def wunderling_modeljx(t, Z, para_model):
+    print(np.round(t,3), end = '\r')
     
-    def wunderling_model(t, Z, para_model):
-        Z = np.asarray(Z, dtype=np.float64) 
-        # print(np.round(t,3), end = '\r')
+    # Unpack parameters
+    d = para_model['d']
+    GMT  = para_model['GMT']
+    Tcrits = para_model['Tcrits'] 
+    Taus = para_model['Taus'] 
+    mat_inter = para_model['mat_inter'] 
+
+    # intrinsic = a * x * (1 - x**2)
+    intrinsic = -Z**3 + Z + np.sqrt(4/27)*GMT/Tcrits
+    # Coupling effects: sum over j of C_ij * x_j
+    coupling = d/10* mat_inter @ (Z + 1)
+    # Total derivative
+    dZdt = (intrinsic+coupling)/Taus
+
+    return jnp.array(dZdt)
+
+
+def ghostNetwork(t, x, para):
+    x_off, a, b, c, d, tau, A = para  # unpack parameters
+
+    dx = (a * (x + x_off)**3 + b * (x + x_off)**2 + c * (x + x_off) + d) / tau \
+        + 6 * sigmoid(100 * (jnp.matmul(A, x) - 0.95))
+
+    return dx
+
+    
+# Wunderling model
+
+para_model = {
+    "d": 0.2,
+    "GMT": 1.51,
+    "mat_inter": np.array([[1,0],[1,0]]),
+    "Tcrits": np.array([1.5,1.5]),
+    "Taus": np.array([50,50])
+    }
+
+def flow_model(t,z):
+    return wunderling_model(t,z,para_model)
+
+# Define grid
+xmin=-1.5;xmax=1.5
+ymin=-1.5;ymax=1.5
+
+Ng=100
+x_range=np.linspace(xmin,xmax,Ng)
+y_range=np.linspace(ymin,ymax,Ng)
+grid_ss = np.meshgrid(x_range, y_range)
+Xg,Yg=grid_ss
+
+# Q-values on grid
+Q, coords = fun.qOnGrid(wunderling_modeljx,para_model,coords=[x_range,y_range], jit=True)
+
+x0s = [jnp.array([-0.7,-0.7]), jnp.array([1,-0.6]), jnp.array([-0.6,1])]
+
+qminima = [fun.find_local_Qminimum(wunderling_modeljx, x0, para_model,tol_glob=1e-6,method="BFGS",verbose=False)[0] for x0 in x0s]
+
+
+#######
+# FP as last pt in trajectory:
+dt = 10#para_model['dt'] 
+t_eval = np.asarray(np.arange(0, 1e5, dt), dtype=np.float64)
+tF = t_eval[-1]
+
+Z0 = np.array([-0.6,-1])
+# Z0 = np.array([-1.4,1])
+sol = solve_ivp(wunderling_modeljx, [0,tF], Z0,  method='LSODA', 
+                                    args=(para_model,), t_eval=t_eval)
+
+#%%
+
+plt.figure(figsize=(16*inCm,14*inCm))
+plt.title(f"$\\tau_1 = {para_model['Taus'][0]},\\tau_2 = {para_model['Taus'][1]}$")
+ax = plt.gca()
+
+U,V=funOld.vector_field(flow_model,grid_ss,dim='2D')    
+ax.streamplot(Xg,Yg,U,V,density=0.8,color=[0.75,0.75,0.75,0.5],arrowsize=1.2,linewidth=1.1)
+
+
+ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
+ax.set_xlim(xmin,xmax);ax.set_ylim(ymin,ymax)
+# Define log scale range
+vmin = np.min(Q)   # Avoid zero or negative values
+vmax = np.max(Q)
+im = plt.imshow(Q.T, extent=(x_range.min(), x_range.max(), y_range.min(), y_range.max()),
+                origin='lower', cmap='magma_r', norm=LogNorm(vmin=vmin, vmax=vmax))
+plt.colorbar(im, label='Q value (log scale)')
+    
+
+
+
+for i in range(3):
+    plt.scatter(*x0s[i], color='k')  # base point
+    plt.scatter(*qminima[i], color='w')  # qminima
+
+
+J_fun = utils.make_jacfun(wunderling_modeljx, para_model)
+
+ev = [jnp.linalg.eig(J_fun(q)) for q in qminima]         # eigenvalues
+
+eigVals = [jnp.real(ev[i][0]) for i in range(len(qminima))]
+eigVecs = [ev[i][1] for i in range(len(qminima))]
+
+for i in range(len(qminima)):
+    for ii in range(2):
+        plt.quiver(*qminima[i], *eigVecs[i][:,ii], scale=5, angles='xy', scale_units='xy', color=f'C{2*i+ii}', label=f'λ={eigVals[i][ii]:.7f}')
         
-        # Unpack parameters
-        d = para_model['d']
-        GMT  = para_model['GMT']
-        Tcrits = para_model['Tcrits'] 
-        Taus = para_model['Taus'] 
-        mat_inter = para_model['mat_inter'] 
-
-        # intrinsic = a * x * (1 - x**2)
-        intrinsic = -Z**3 + Z + np.sqrt(4/27)*GMT/Tcrits
-        # Coupling effects: sum over j of C_ij * x_j
-        coupling = d/10* mat_inter @ (Z + 1)
-        # Total derivative
-        dZdt = (intrinsic + coupling)/Taus
-
-        return np.asarray(dZdt)  
-
+    idxmin = np.argmin(np.abs(eigVals[i]))
     
-    def wunderling_modeljx(t, Z, para_model):
-        print(np.round(t,3), end = '\r')
-        
-        # Unpack parameters
-        d = para_model['d']
-        GMT  = para_model['GMT']
-        Tcrits = para_model['Tcrits'] 
-        Taus = para_model['Taus'] 
-        mat_inter = para_model['mat_inter'] 
-    
-        # intrinsic = a * x * (1 - x**2)
-        intrinsic = -Z**3 + Z + np.sqrt(4/27)*GMT/Tcrits
-        # Coupling effects: sum over j of C_ij * x_j
-        coupling = d/10* mat_inter @ (Z + 1)
-        # Total derivative
-        dZdt = (intrinsic+coupling)/Taus
-    
-        return jnp.array(dZdt)
+    step = 0.1
+    direction = eigVecs[i][:, idxmin]
     
     
-    def ghostNetwork(t, x, para):
-        x_off, a, b, c, d, tau, A = para  # unpack parameters
+    new_pos = qminima[i] + step * direction
+    plt.scatter(*new_pos, marker='x',color='red')
+    new_pos = qminima[i] - step * direction
+    plt.scatter(*new_pos, marker='x',color='blue')
     
-        dx = (a * (x + x_off)**3 + b * (x + x_off)**2 + c * (x + x_off) + d) / tau \
-         + 6 * sigmoid(100 * (jnp.matmul(A, x) - 0.95))
-    
-        return dx
-    
-        
-    # Wunderling model
-    
-    para_model = {
-        "d": 0.2,
-        "GMT": 1.51,
-        "mat_inter": np.array([[1,0],[1,0]]),
-        "Tcrits": np.array([1.5,1.5]),
-        "Taus": np.array([50,50])
-        }
-    
-    def flow_model(t,z):
-        return wunderling_model(t,z,para_model)
-    
-    # Define grid
-    xmin=-1.5;xmax=1.5
-    ymin=-1.5;ymax=1.5
-    
-    Ng=100
-    x_range=np.linspace(xmin,xmax,Ng)
-    y_range=np.linspace(ymin,ymax,Ng)
-    grid_ss = np.meshgrid(x_range, y_range)
-    Xg,Yg=grid_ss
-    
-    # Q-values on grid
-    Q, coords = fun.qOnGrid(wunderling_modeljx,para_model,coords=[x_range,y_range], jit=True)
-    
-    x0s = [jnp.array([-0.7,-0.7]), jnp.array([1,-0.6]), jnp.array([-0.6,1])]
-    
-    qminima = [fun.find_local_Qminimum(wunderling_modeljx, x0, para_model,tol_glob=1e-6,method="BFGS",verbose=False)[0] for x0 in x0s]
+    # plt.quiver(*qminima[i], *eigVecs[i][:,ii], scale=5, angles='xy', scale_units='xy', color='w',linestyle='dotted')
 
 
-    #######
-    # FP as last pt in trajectory:
-    dt = 10#para_model['dt'] 
-    t_eval = np.asarray(np.arange(0, 1e5, dt), dtype=np.float64)
-    tF = t_eval[-1]
+plt.legend(loc='upper right')
 
-    Z0 = np.array([-0.6,-1])
-    # Z0 = np.array([-1.4,1])
-    sol = solve_ivp(wunderling_modeljx, [0,tF], Z0,  method='LSODA', 
-                                        args=(para_model,), t_eval=t_eval)
 
-    #%%
-    
-    plt.figure(figsize=(16*inCm,14*inCm))
-    plt.title(f"$\\tau_1 = {para_model['Taus'][0]},\\tau_2 = {para_model['Taus'][1]}$")
-    ax = plt.gca()
-    
-    U,V=funOld.vector_field(flow_model,grid_ss,dim='2D')    
-    ax.streamplot(Xg,Yg,U,V,density=0.8,color=[0.75,0.75,0.75,0.5],arrowsize=1.2,linewidth=1.1)
+ax.plot(sol.y[0,:],sol.y[1,:],'--b',lw=1)
+plt.show()
 
-    
-    ax.set_xlabel('$x_1$'); ax.set_ylabel('$x_2$')
-    ax.set_xlim(xmin,xmax);ax.set_ylim(ymin,ymax)
-    # Define log scale range
-    vmin = np.min(Q)   # Avoid zero or negative values
-    vmax = np.max(Q)
-    im = plt.imshow(Q.T, extent=(x_range.min(), x_range.max(), y_range.min(), y_range.max()),
-                    origin='lower', cmap='magma_r', norm=LogNorm(vmin=vmin, vmax=vmax))
-    plt.colorbar(im, label='Q value (log scale)')
-     
+Trj=sol.y.T
+ghostSeq = fun.ghostID(wunderling_modeljx,para_model,dt,Trj,0.05,peak_kwargs={"prominence":2,"width":2*dt},ctrlOutputs={"ctrl_qplot":True,"qplot_xscale":"log","ctrl_evplot":True})
 
-    
-    
-    for i in range(3):
-        plt.scatter(*x0s[i], color='k')  # base point
-        plt.scatter(*qminima[i], color='w')  # qminima
-    
-    
-    J_fun = utils.make_jacfun(wunderling_modeljx, para_model)
+#%%
+ghostSeqs = fun.ghostID_phaseSpaceSample(wunderling_modeljx, para_model, 0, 1e5, dt, [x_range,y_range],epsilon_gid=0.05,n_samples=5,peak_kwargs={"prominence":2,"width":2*dt})#,ctrlOutputs={"ctrl_qplot":True,"qplot_xscale":"log","ctrl_evplot":True})
 
-    ev = [jnp.linalg.eig(J_fun(q)) for q in qminima]         # eigenvalues
+ghostList = fun.uniqueGhosts(ghostSeqs)
 
-    eigVals = [jnp.real(ev[i][0]) for i in range(len(qminima))]
-    eigVecs = [ev[i][1] for i in range(len(qminima))]
-    
-    for i in range(len(qminima)):
-        for ii in range(2):
-            plt.quiver(*qminima[i], *eigVecs[i][:,ii], scale=5, angles='xy', scale_units='xy', color=f'C{2*i+ii}', label=f'λ={eigVals[i][ii]:.7f}')
-            
-        idxmin = np.argmin(np.abs(eigVals[i]))
-        
-        step = 0.1
-        direction = eigVecs[i][:, idxmin]
-        
-        
-        new_pos = qminima[i] + step * direction
-        plt.scatter(*new_pos, marker='x',color='red')
-        new_pos = qminima[i] - step * direction
-        plt.scatter(*new_pos, marker='x',color='blue')
-        
-        # plt.quiver(*qminima[i], *eigVecs[i][:,ii], scale=5, angles='xy', scale_units='xy', color='w',linestyle='dotted')
 
-    
-    plt.legend(loc='upper right')
-    
-   
-    ax.plot(sol.y[0,:],sol.y[1,:],'--b',lw=1)
-    plt.show()
-    
-    Trj=sol.y.T
-    ghostSeq = fun.ghostID(wunderling_modeljx,para_model,dt,Trj,0.05,peak_kwargs={"prominence":2,"width":2*dt},ctrlOutputs={"ctrl_qplot":True,"qplot_xscale":"log","ctrl_evplot":True})
-    
-    #%%
-    ghostSeqs = fun.ghostID_phaseSpaceSample(wunderling_modeljx, para_model, 0, 1e5, dt, [x_range,y_range],epsilon_gid=0.05,n_samples=5,peak_kwargs={"prominence":2,"width":2*dt})#,ctrlOutputs={"ctrl_qplot":True,"qplot_xscale":"log","ctrl_evplot":True})
-    
-    ghostList = fun.uniqueGhosts(ghostSeqs)
-    
-    
     #%%
     
     

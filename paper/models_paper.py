@@ -35,11 +35,6 @@ def bieg_etal_mNC(C,para):
     a,Nt,N0,g,y,r,c,m = para
     M = 1-C+a*C/y*(Nt/(N0+Nt))-g/(y*(1-C))
     return M
-# def vanDerPol_2g(t,z,para):
-#     eps,alpha=para
-#     dx=(1/eps)*(z[1]-(1/3)*z[0]**3+z[0])
-#     dy = -z[0] + alpha*(z[1] - (1/3)*z[1]**3)
-#     return jnp.array([dx, dy])
 
 def sys_Farjami2021(t,x,p):
     # doi: 10.1098/rsif.2021.0442 
@@ -122,3 +117,168 @@ def May_Leonard(t,z,para): # from
     dN3 = z[2]*(1-alpha*z[0]-beta*z[1]-z[2])
 
     return jnp.array([dN1, dN2, dN3])
+
+def Kuehn_toyModel(t,z,para): # from  Kuehn 2017
+
+    eps=para
+
+    dx = eps - z[0]
+    dy = eps*z[1]**2
+
+    return jnp.array([dx,dy])
+
+def FHN(t, z, para): # from ...
+    a, b, eps = para
+
+    du = z[0] - z[0]**3 - z[1] 
+    dv = eps * (z[0] - b * z[1] + a)
+
+    return jnp.array([du,dv])
+
+def MMenten_slowFast(t, z, para): # from ...
+    alpha, beta, mu = para
+    ds = beta*z[1]*(1-alpha) - z[0]*(1-alpha*z[1])
+    dc = (z[0]*(1-alpha*z[1])-z[1]*(1-alpha))/mu
+    return jnp.array([ds,dc])
+    
+
+# def vanDerPol(t,z,para):
+#     eps=para
+#     dx=(1/eps)*(z[1]-(1/3)*z[0]**3+z[0])
+#     dy = -z[0]
+#     return jnp.array([dx, dy])
+
+def coupledThetaNeurons(t, z, para): # from Augustsson & Martens 2024, doi: 10.1063/5.0226338
+    n,K,pS = para
+    theta1_dot = 1-jnp.cos(z[0]+pS)+(1+jnp.cos(z[0]+pS))*(n+K*(1-jnp.cos(z[1]+pS))) 
+    theta2_dot = 1-jnp.cos(z[1]+pS)+(1+jnp.cos(z[1]+pS))*(n+K*(1-jnp.cos(z[0]+pS))) 
+    return jnp.array([theta1_dot,theta2_dot])
+
+def fromArray(t,p):
+    t_end,dt,arr = p
+    if t<t_end:
+        ni = int(t/dt)
+        return arr[ni]
+    return 0
+
+def coupledThetaNeurons_na(t, z, para): # from Augustsson & Martens 2024, doi: 10.1063/5.0226338
+    n,K,pS,p_inp = para
+
+    inp = fromArray(t,p_inp)
+  
+    theta1_dot = 1-jnp.cos(z[0]+pS)+(1+jnp.cos(z[0]+pS))*(n+K*(1-jnp.cos(z[1]+pS)) + inp) 
+    theta2_dot = 1-jnp.cos(z[1]+pS)+(1+jnp.cos(z[1]+pS))*(n+K*(1-jnp.cos(z[0]+pS))) 
+    
+    return jnp.array([theta1_dot,theta2_dot])
+
+def singleThetaNeuron_na(t, z, para): # from Augustsson & Martens 2024, doi: 10.1063/5.0226338
+    n,pS,p_inp = para
+
+    inp = fromArray(t,p_inp)
+  
+    theta1_dot = 1-jnp.cos(z[0]+pS)+(1+jnp.cos(z[0]+pS))*(n + inp) 
+    
+    return jnp.array([theta1_dot])
+
+def wunderling_model(t, Z, para):
+    Z = jnp.asarray(Z, dtype=jnp.float32)
+
+    d,GMT,Tcrits,Taus,mat_inter=para
+
+    intrinsic = -Z**3 + Z + np.sqrt(4/27)*GMT/Tcrits
+    coupling = d/10* mat_inter @ (Z + 1) # Coupling effects: sum over j of C_ij * x_j
+
+    # Total derivative
+    dZdt = (intrinsic+coupling)/Taus
+
+    return jnp.array(dZdt) 
+
+
+# def wunderling_model_vectorized(t, Z, para):
+#     """
+#     Vectorized version using explicit broadcasting
+#     """
+#     Z = np.asarray(Z, dtype=np.float64)
+    
+#     # Unpack parameters
+#     d,GMT,Tcrits,Taus,mat_inter=para
+    
+#     # Ensure Z is at least 2D for consistent processing
+#     if Z.ndim == 1:
+#         Z = Z[np.newaxis, :]  # Convert to 2D with shape (1, n_vars)
+#         return_single = True
+#     else:
+#         return_single = False
+    
+#     # Calculate intrinsic term (works for any number of points)
+#     intrinsic = -Z**3 + Z + np.sqrt(4/27) * GMT / Tcrits
+    
+#     # Calculate coupling term using batch matrix multiplication
+#     # (Z + 1) has shape (n_points, n_vars)
+#     # mat_inter has shape (n_vars, n_vars)
+#     # Result should have shape (n_points, n_vars)
+#     coupling = d/10 * (Z + 1) @ mat_inter.T  # Equivalent to mat_inter @ (Z + 1)^T
+    
+#     dZdt = (intrinsic + coupling) / Taus
+    
+#     # Return to original shape if input was single point
+#     if return_single:
+#         return dZdt[0]  # Return 1D array
+#     else:
+#         return dZdt
+
+# def wunderling_model_vectorized(t, Z, para):
+#     """
+#     Vectorized version using explicit broadcasting
+#     """
+#     Z = np.asarray(Z, dtype=np.float64)
+    
+#     # Unpack parameters
+#     d,GMT,Tcrits,Taus,mat_inter=para
+    
+#     # Ensure Z is at least 2D for consistent processing
+#     if Z.ndim == 1:
+#         Z = Z[np.newaxis, :]  # Convert to 2D with shape (1, n_vars)
+#         return_single = True
+#     else:
+#         return_single = False
+    
+#     # Calculate intrinsic term (works for any number of points)
+#     intrinsic = -Z**3 + Z + np.sqrt(4/27) * GMT / Tcrits
+    
+#     # Calculate coupling term using batch matrix multiplication
+#     # (Z + 1) has shape (n_points, n_vars)
+#     # mat_inter has shape (n_vars, n_vars)
+#     # Result should have shape (n_points, n_vars)
+#     coupling = d/10 * (Z + 1) @ mat_inter.T  # Equivalent to mat_inter @ (Z + 1)^T
+    
+#     dZdt = (intrinsic + coupling) / Taus
+    
+#     # Return to original shape if input was single point
+#     if return_single:
+#         return dZdt[0]  # Return 1D array
+#     else:
+#         return dZdt
+
+
+def nullclines_Wunderling(para, x_range=(-2, 2), y_range=(-2, 2), resolution=200):
+    """
+    Nullclines of the 2D wunderling model.
+    """
+    # Unpack parameters
+    d,GMT,Tcrits,Taus,mat_inter=para
+    
+    # Define constants
+    gamma1 = np.sqrt(4/27) * GMT / Tcrits[0]
+    gamma2 = np.sqrt(4/27) * GMT / Tcrits[1]
+    
+    # Build grid
+    x = np.linspace(x_range[0], x_range[1], resolution)
+    y = np.linspace(y_range[0], y_range[1], resolution)
+    X, Y = np.meshgrid(x, y)
+    
+    # Nullclines (dotx = 0, doty = 0)
+    f1 = -X**3 + X + gamma1 + d/10 * (mat_inter[0,0]*(X+1) + mat_inter[0,1]*(Y+1))
+    f2 = -Y**3 + Y + gamma2 + d/10 * (mat_inter[1,0]*(X+1) + mat_inter[1,1]*(Y+1))
+    
+    return f1, f2

@@ -168,3 +168,120 @@ def euklideanVelocity(x,dt):
         d = np.linalg.norm(x[i,:]-x[i-1,:])
         v = np.append(v, d/dt)
     return v
+
+def generate_peak_series(
+    total_duration=10.0,   # Total time (arbitrary units)
+    dt=0.001,              # Time step (arbitrary units)
+    amp_mean=1.0,          # Mean peak amplitude
+    amp_std=0.3,           # STD of peak amplitudes
+    peak_width=0.4,        # Width of each peak (same time units)
+    n=4,                   # Sharpness parameter (higher = sharper)
+    allow_negative=True,   # If True, peaks can be negative with 50% probability
+    **kwargs
+):
+    # Choose IPI distribution
+    if kwargs["ipi_distr"] == "normal":
+        if "ipi_params" in kwargs:
+            ipi_mean, ipi_std = kwargs["ipi_params"]
+        else:
+            ipi_mean, ipi_std = 1.0, 0.2
+
+        peak_times = [0.0]
+        while peak_times[-1] < total_duration:
+            ipi = np.random.normal(ipi_mean, ipi_std)
+            ipi = max(ipi, peak_width)
+            peak_times.append(peak_times[-1] + ipi)
+
+    elif kwargs["ipi_distr"] == "exponential":
+        if "ipi_params" in kwargs:
+            ipi_scale = kwargs["ipi_params"][0]
+        else:
+            ipi_scale = 1.0
+
+        peak_times = [0.0]
+        while peak_times[-1] < total_duration:
+            ipi = np.random.exponential(ipi_scale)
+            ipi = max(ipi, peak_width)
+            peak_times.append(peak_times[-1] + ipi)
+
+    elif kwargs["ipi_distr"] == "poisson":
+        if "ipi_params" in kwargs:
+            ipi_lam = kwargs["ipi_params"][0]
+        else:
+            ipi_lam = 1.0
+
+        peak_times = [0.0]
+        while peak_times[-1] < total_duration:
+            ipi = np.random.poisson(ipi_lam)
+            ipi = max(ipi, peak_width)
+            peak_times.append(peak_times[-1] + ipi)
+
+    # Generate amplitudes
+    amplitudes = np.random.normal(amp_mean, amp_std, len(peak_times))
+    amplitudes = np.clip(amplitudes, 0.1, None)
+
+    if allow_negative:
+        amplitudes *= np.random.choice([-1, 1], size=len(amplitudes))
+
+    # Create time array using timestep
+    t = np.arange(0.0, total_duration, dt)
+    signal = np.zeros_like(t)
+
+    # Add peaks
+    for t_peak, a in zip(peak_times, amplitudes):
+        if t_peak > total_duration:
+            continue
+
+        tau = t - t_peak
+        mask = np.abs(tau) <= peak_width / 2
+
+        peak = a * (1 + np.cos(2 * np.pi * tau[mask] / peak_width))**n / (2**n)
+        signal[mask] += peak
+
+    return t, signal
+
+
+def rankOrdering(arr):
+    arr = np.asarray(arr)
+    # Flatten, argsort twice to get ranks
+    ranks = arr.argsort().argsort().astype(float) + 1  # ranks start at 1
+    N = len(ranks)
+    # Map to (0, 1)
+    uniform = ranks / (N + 1)
+    # Shift to (-0.5, 0.5)
+    uniform_zero_mean = uniform - 0.5
+    return uniform_zero_mean.reshape(arr.shape)
+
+def mutualInformation(x,y,nbins,rank=False):
+    # Naive algorithm as described in Selbig et al. (2002):
+    # The mutual information: Detecting and evaluating dependencies between variables.
+    # Bioinformatics, Vol. 18 Suppl. 2, S231–S240
+    N = len(x)
+    
+    if rank == True:
+        x_=rankOrdering(x)
+        y_=rankOrdering(y)
+    else:
+        x_=x
+        y_=y
+        
+    x_range=[np.min(x_),np.max(x_)]
+    y_range=[np.min(y_),np.max(y_)]
+    
+    if N == len(y):
+        if N<10*nbins: print("Warning: Very few samples compared to bin numbers. Calculated mutual information may not be accurate!")
+        kh, xedges, yedges = np.histogram2d(x_,y_,nbins,range=[x_range,y_range])
+        sum_p = 0
+        for i in range(nbins):
+            for j in range(nbins):
+                if all([kh[i,j]!=0,np.nansum(kh[i,:])!=0,np.nansum(kh[:,j]!=0)]): # exclude empty bins
+                    sum_p += kh[i,j]*np.log2(kh[i,j]/(np.nansum(kh[i,:])*np.nansum(kh[:,j])))
+        MI = np.log2(N) + sum_p/N
+        
+        err_finSize = (nbins**2 - 2*nbins * 1)/(2*N) # estimated deviation from true MI
+        
+        return MI - err_finSize
+    else:
+        print("Error: x and y do not have the same size.")
+        return None, None
+    

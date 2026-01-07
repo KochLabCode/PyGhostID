@@ -1,0 +1,23 @@
+# From Augustsson & Martens (2024), Chaos 34 
+
+# pS is just a phase shift used for better visualization without altering the dynamics
+par n=-1,K=-0.2, pS = 3.141592653589793
+
+# ODEs according to Eqs. (6a,b)
+theta1'=1-cos(theta1+pS)+(1+cos(theta1+pS))*(n+K*(1-cos(theta2+pS))) 
+theta2'=1-cos(theta2+pS)+(1+cos(theta2+pS))*(n+K*(1-cos(theta1+pS))) 
+theta1(0)=0
+theta2(0)=0
+
+@ nplot=1
+@ nmesh=400
+@ total=300,xp=theta1,yp=theta2,xlo=0,xhi=6.3,ylo=0,yhi=6.3
+@ meth=rungekutta, dt=.05, atol=1e-5
+
+# Some AUTO parameters
+@ autovar=theta1,autoxmin=-2,autoymin=-2,autoxmax=2,autoymax=2
+@ ntst=400,nmax=3000,npr=500,ds=0.0001,dsmin=0.00001,dsmax=0.05
+@ ncol=4,epsl=1e-4,parmin=-1,parmax=1,normmin=0,normmax=1000
+@ epsu=1e-4,epss=0.0001
+done
+

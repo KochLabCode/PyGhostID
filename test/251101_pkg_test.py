@@ -13,10 +13,10 @@ from jax import jacfwd
 from matplotlib.colors import LogNorm
 import functions_v08 as funOld
 
-def make_jacfun(model, params):
-    F = lambda x: model(0, x, params)
-    J_fun = jax.jacfwd(F)
-    return jax.jit(J_fun)
+# def make_jacfun(model, params):
+#     F = lambda x: model(0, x, params)
+#     J_fun = jax.jacfwd(F)
+#     return jax.jit(J_fun)
 
 
 def icAtQmin(qmin,step,nlowest,model,params):

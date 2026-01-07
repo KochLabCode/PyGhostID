@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch
 from scipy.stats import qmc
 
-def iqr_sliding_filter(x, windowsize=7, k=1.5):
+def iqr_sliding_filter(x, windowsize, k):
     x = np.asarray(x, dtype=float)
     y = x.copy()
     n = len(x)
@@ -38,8 +38,7 @@ def iqr_sliding_filter(x, windowsize=7, k=1.5):
 
     return y
 
-def sort_closest(x):
-    
+def sort_NN(x): 
     x_ = np.zeros(x.shape)
     x_[:,0] = x[:,0]
     for t in range(0,x.shape[1]-1):
@@ -63,7 +62,7 @@ def sort_closest(x):
     return x_
 
 
-def sign_change(arr):
+def sign_change(arr,OR,OR_ws,OR_k,**kwargs):
     """
     Returns True if and only if:
       1. arr has at least two elements
@@ -72,23 +71,24 @@ def sign_change(arr):
       AND 
       4. Values are increasing (arr[i] >= arr[i-1])
       5. There is exactly one transition where prev < 0 and curr > 0
-      OR
-      6. The slope of the fitted values is positive and R² >= 95
 
     Zero values or held-constant segments will cause it to return False.
     """
+
+    display_warnings = kwargs.get("display_warnings", True)
+
     if len(arr) < 2:
         return False
 
     if arr[0] >= 0 or arr[-1] <= 0:
         return False
 
-
     sign_change_occured = False
     tryOR = False
     for prev, curr in zip(arr, arr[1:]):
         if curr < prev:
-            print("Error in evaluating sign change of eigenvalues: monotonicity violated. Trying outlier removal...")
+            if display_warnings:
+                print(f"Error in evaluating sign change of eigenvalues: monotonicity violated. {"Trying outlier removal..." if OR else ""}")
             tryOR = True
             break         
         # 2) detect the one negative→positive jump
@@ -96,30 +96,33 @@ def sign_change(arr):
             if not sign_change_occured:
                 sign_change_occured = True
             else:
-                print("Error in evaluating sign change of eigenvalues: more than one sign changes detected. Trying outlier removal...")
+                if display_warnings:
+                    print(f"Error in evaluating sign change of eigenvalues: more than one sign changes detected. {"Trying outlier removal..." if OR else ""}")
                 sign_change_occured = False
                 tryOR = True
                 break
 
-    if tryOR:
+    if OR and tryOR:
                
-        arr_ = iqr_sliding_filter(arr)
+        arr_ = iqr_sliding_filter(arr,OR_ws,OR_k)
         for prev, curr in zip(arr_, arr_[1:]):
             if curr < prev:
-                print("... unsuccessful.")
+                if display_warnings:
+                    print("... unsuccessful.")
                 break         
             # 2) detect the one negative→positive jump
             if prev < 0 and curr > 0:
                 if not sign_change_occured:
                     sign_change_occured = True
-                    print("... success.")
+                    if display_warnings:
+                        print("... success.")
                 else:
-                    print("... unsuccessful.")
+                    if display_warnings:
+                        print("... unsuccessful.")
                     sign_change_occured = False
                     break
 
     return sign_change_occured
-
 
 def phaseSpaceLHS(ranges, n_samples):
     """
@@ -190,14 +193,19 @@ def make_jacfun(model, params):
     return jax.jit(J_fun)
 
 # ---------------- Fast slope calculation ----------------
-def slope_and_r2(y_, dt):
+def slope_and_r2(y_, dt, ev_outlier_removal, ev_outlier_removal_ws, ev_outlier_removal_k):
     """
     Compute slope and R² of linear regression of y vs time
     y: shape (N,)
     dt: time step
     """
-    N = len(y_)
-    y = iqr_sliding_filter(y_)
+
+    if ev_outlier_removal:
+        y = iqr_sliding_filter(y_, ev_outlier_removal_ws, ev_outlier_removal_k)
+    else:
+        y = y_
+    
+    N = len(y)
     x = np.arange(N) * dt
     x_mean = np.mean(x)
     y_mean = np.mean(y)
@@ -283,3 +291,91 @@ def draw_custom_edges(G, pos, edgelist, color="red", head_length=10, head_width=
                 mutation_scale=1  # Set mutation_scale as requested
             )
             ax.add_patch(arrow)
+
+
+def parse_kwargs(**kwargs):
+    """Parse and validate kwargs for ghostID and dependent functions.
+    
+    Returns a dictionary with all parameters and their validated values.
+    """
+    config = {}
+    
+    # ghostID parameters
+    
+    config['epsilon_SN_ghosts'] = kwargs.get("epsilon_SN_ghosts", 0.1)
+    
+    # Peak detection parameters
+    config['peak_kwargs'] = kwargs.get("peak_kwargs", {})
+    
+    # Model and batch processing
+    config['batchModel'] = kwargs.get("batchModel", None)
+    
+    # Control outputs and plotting
+    config['ctrlOutputs'] = kwargs.get("ctrlOutputs", {})
+    config['return_ctrl_figs'] = config['ctrlOutputs'].get('return_ctrl_figs', False)
+    config['display_warnings'] = kwargs.get("display_warnings", True)
+
+    # Plotting control settings
+    ctrl = config['ctrlOutputs']
+    
+    # Q-plot settings
+    config['ctrl_qplot'] = ctrl.get("ctrl_qplot", False)
+    if not isinstance(config['ctrl_qplot'], bool):
+        raise TypeError(f"ctrl_qplot must be boolean, got {type(config['ctrl_qplot']).__name__}")
+    if config['ctrl_qplot']:
+        config['qplot_xscale'] = ctrl.get("qplot_xscale", "linear")
+        config['qplot_yscale'] = ctrl.get("qplot_yscale", "linear")
+        if config['qplot_xscale'] not in ("linear", "log"):
+            raise ValueError(f"qplot_xscale must be 'linear' or 'log', got {config['qplot_xscale']!r}")
+        if config['qplot_yscale'] not in ("linear", "log"):
+            raise ValueError(f"qplot_yscale must be 'linear' or 'log', got {config['qplot_yscale']!r}")
+    else:
+        config['qplot_xscale'] = None
+        config['qplot_yscale'] = None
+    
+    # Eigenvalue plot settings
+    config['ctrl_evplot'] = ctrl.get("ctrl_evplot", False)
+    if not isinstance(config['ctrl_evplot'], bool):
+        raise TypeError(f"ctrl_evplot must be boolean, got {type(config['ctrl_evplot']).__name__}")
+    if config['ctrl_evplot']:
+        config['evplot_xscale'] = ctrl.get("evplot_xscale", "linear")
+        config['evplot_yscale'] = ctrl.get("evplot_yscale", "linear")
+        if config['evplot_xscale'] not in ("linear", "log"):
+            raise ValueError(f"evplot_xscale must be 'linear' or 'log', got {config['evplot_xscale']!r}")
+        if config['evplot_yscale'] not in ("linear", "log"):
+            raise ValueError(f"evplot_yscale must be 'linear' or 'log', got {config['evplot_yscale']!r}")
+    else:
+        config['evplot_xscale'] = None
+        config['evplot_yscale'] = None
+    
+    # Eigenvalue processing
+    config['eigval_NN_sorting'] = kwargs.get("eigval_NN_sorting", False)
+    config['ev_outlier_removal'] = kwargs.get("ev_outlier_removal", False)
+    config['ev_outlier_removal_ws'] = kwargs.get("ev_outlier_removal_ws", 7)
+    config['ev_outlier_removal_k'] = kwargs.get("ev_outlier_removal_k", 1.5)
+    config['evLimit'] = kwargs.get("evLimit", 0)
+    
+    # Slope limits with validation
+    sl = kwargs.get("slopeLimits", None)
+    if sl is not None:
+        sl = np.asarray(sl, dtype=float)
+        if sl.shape == (2,) and np.all(sl >= 0) and sl[0] < sl[1]:
+            config['slopeLimits'] = sl
+        else:
+            raise ValueError(
+                f"slopeLimits must be a 2-element nonnegative interval [min,max], got {sl}"
+            )
+    else:
+        config['slopeLimits'] = np.array([0, np.inf])
+    
+    #############################################################
+
+    # track_ghost_branch specific parameters
+    config['distQminThr'] = kwargs.get("distQminThr", np.inf)
+
+    # ghostID_phaseSpaceSample specific parameters
+    config['epsilon_gid'] = kwargs.get("epsilon_gid", 0.1)
+    config['epsilon_unify'] = kwargs.get("epsilon_unify", 0.1)
+    config['n_samples'] = kwargs.get("n_samples", 50)
+
+    return config

@@ -24,7 +24,7 @@ from tqdm import tqdm
 
 #######################################
 
-def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN_ghosts=0.1, **kwargs):
+def ghostID(model, params, dt, trajectory, epsilon_Qmin=0.05, evLimit=0.1, epsilon_SN_ghosts=0.1, **kwargs):
     
     """ HYPERPARAMETERS OF THE ALGORITHM
     

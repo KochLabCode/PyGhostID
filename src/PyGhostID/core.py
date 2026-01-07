@@ -24,55 +24,67 @@ from tqdm import tqdm
 
 #######################################
 
-def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN_ghosts=0.1, **kwargs):
+def ghostID(model, params, dt, trajectory, epsilon_Qmin=0.05, **kwargs):
     
     """ HYPERPARAMETERS OF THE ALGORITHM
     
     #####################################################################################################
-    epsilon_Qmin         - distance around Q-minima in which a trajectory segment is evaluated
-                           along which to evaluate eigenvalues
-    evLimit              - maximum value below which the absolute averaged eigenvalues of a trajectory
-                           are considered to be close enough to 0    
-    epsilon_SN_ghosts    - distance below which ghosts are considered to be the same
+    epsilon_Qmin            - distance around Q-minima in which a trajectory segment is evaluated
+                              along which to evaluate eigenvalues  
+    
     
     OPTIONAL PARAMETERS (kwargs)
     #####################################################################################################
-    slopeLimits          - upper and lower limits for positive eigenvalue slopes
-    peak_kwargs          - dict, additional arguments for scipy.signal.find_peaks
-    (...)
+    epsilon_SN_ghosts       - distance below which ghosts are considered to be the same
+    peak_kwargs             - dict, additional arguments for scipy.signal.find_peaks
+    evLimit                 - maximum value below which the absolute averaged eigenvalues of a trajectory
+                              are considered to be close enough to 0. Set to >0 if you want to enable indirect
+                              identification of ghosts.
+    slopeLimits             - upper and lower limits for positive eigenvalue slopes. Will be ignored if evLimit = 0.
+    eigval_NN_sorting       - Nearest-neigbor reconstruction of eigenvalue timeseries. 
+                              Use if eigenvalue timeseries appear scattered/discontinues.
+    ev_outlier_removal      - Boolean, whether to apply outlier removal to eigenvalue timeseries before further processing.
+    ev_outlier_removal_ws   - Size of sliding window for outlier removal in eigenvalue timeseries. Will be ignored if ev_outlier_removal=False.
+    ev_outlier_removal_k    - Size of the filter for outlier removal in eigenvalue timeseries. 
+                              Values outsisde +/- k*interquartile ranges are removed. Will be ignored if ev_outlier_removal=False.
 
-    Version 0.8
+    Version 0.9
     """
+
+    # Parse and validate kwargs
+    config = parse_kwargs(**kwargs)
     
-    slopeLimits = [0, np.inf]
-    if "slopeLimits" in kwargs:
-        if np.all(kwargs["slopeLimits"] >= 0) and kwargs["slopeLimits"][0] < kwargs["slopeLimits"][1]:
-            slopeLimits = kwargs["slopeLimits"]
-        else:
-            print("Invalid values for \"slopeLimits\".")
-            return
-        
-    # Peak detection kwargs
-    peak_kwargs = kwargs.get("peak_kwargs", {})
+    # Extract parameters from config
+    display_warnings = config['display_warnings']
+    epsilon_SN_ghosts = config['epsilon_SN_ghosts']
+    peak_kwargs = config['peak_kwargs']
     if "width" not in peak_kwargs:  
         peak_kwargs["width"] = 5 * dt   # default if not supplied
+    batchModel = config['batchModel']
+    eigval_NN_sorting = config['eigval_NN_sorting']
+    ev_outlier_removal = config['ev_outlier_removal']
+    ev_outlier_removal_ws = config['ev_outlier_removal_ws']
+    ev_outlier_removal_k = config['ev_outlier_removal_k']
+    evLimit = config['evLimit']
+    slopeLimits = config['slopeLimits']
     
-    if "batchModel" in kwargs:
-        Xs = kwargs["batchModel"](trajectory)
+    # Plotting control settings
+    return_ctrl_figs = config['return_ctrl_figs']
+    ctrl_qplot = config['ctrl_qplot']
+    qplot_xscale = config['qplot_xscale']
+    qplot_yscale = config['qplot_yscale']
+    ctrl_evplot = config['ctrl_evplot']
+    evplot_xscale = config['evplot_xscale']
+    evplot_yscale = config['evplot_yscale']
+          
+    ####################################
+
+    # Handle batch model
+    if batchModel is not None:
+        Xs = batchModel(trajectory)
     else:
         model_batch = make_batch_model(model, params)
-        Xs = model_batch(trajectory)  
-
-    if "ctrlOutputs" in kwargs:
-        if "return_ctrl_figs" in kwargs["ctrlOutputs"]:
-            return_ctrl_figs = kwargs["ctrlOutputs"]["return_ctrl_figs"]
-        else:
-            return_ctrl_figs = False
-    else:
-        return_ctrl_figs = False
-
-    ctrl_qplot, qplot_xscale, qplot_yscale = get_ctrl_plot_settings(kwargs, "qplot")
-    ctrl_evplot, evplot_xscale, evplot_yscale = get_ctrl_plot_settings(kwargs, "evplot")
+        Xs = model_batch(trajectory)
 
     if return_ctrl_figs:
         ctrl_figures = []
@@ -81,7 +93,6 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
     fullTransientSeq = []  # list of visited transient states to be filled
               
     ############# STEP 1 - identify non-oscillatory saddle-node ghosts #############################
-    
     
     ### Identify minima in Q-values along trajectory using batch model output
     Q_ts = 0.5 * np.sum(Xs**2, axis=1)
@@ -137,12 +148,12 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
                     ax.vlines(x, base_val, peak_val, color="gray", linestyle="--")
                     # add text next to line
                     ax.text(x, base_val - 0.05 * prom, f"{prom:.2f}",
-                              ha="center", va="top", fontsize=9, color="gray")
+                              ha="center", va="top", fontsize=7.5, color="gray")
                     
             ax.set_ylabel("pQ(t)")
             ax.set_xlabel("t")
-            plt.xscale(qplot_xscale)
-            plt.yscale(qplot_yscale)
+            ax.set_xscale(qplot_xscale)
+            ax.set_yscale(qplot_yscale)
             ax.legend(fontsize = 9)
             ax.set_title("Detected Q-minima with prominences",fontsize=12)
             plt.tight_layout()
@@ -178,10 +189,15 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
                 pts_segment = jnp.asarray(trajectory[idcs_segment])        # JAX array
                 J_batch = jax.vmap(J_fun)(pts_segment)                     # batch Jacobians
                 eigVals = jax.vmap(jnp.linalg.eigvals)(J_batch)            # eigenvalues
-                eigVals_real = np.real(np.asarray(eigVals))                # back to numpy for analysis
+                eigVals_real_ = np.real(np.asarray(eigVals))                # back to numpy for analysis
+
+                if eigval_NN_sorting:
+                    eigVals_real = sort_NN(eigVals_real_.T).T
+                else:
+                    eigVals_real = eigVals_real_
                     
                 # Determine eigenvalue crossings along the segment
-                ev_signChanges = [sign_change(eigVals_real[:, ii]) for ii in range(n)]
+                ev_signChanges = [sign_change(eigVals_real[:, ii],ev_outlier_removal,ev_outlier_removal_ws,ev_outlier_removal_k,display_warnings=display_warnings) for ii in range(n)]
                 crossings = sum(ev_signChanges)
                 
                 # determine eigenvalue slopes
@@ -191,7 +207,7 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
                 for ii in range(n):
                     # Only consider eigenvalues with small median real part along segment
                     if np.abs(np.median(eigVals_real[:, ii])) < evLimit:
-                        slope, r2 = slope_and_r2(eigVals_real[:, ii], dt)
+                        slope, r2 = slope_and_r2(eigVals_real[:, ii], dt,ev_outlier_removal,ev_outlier_removal_ws,ev_outlier_removal_k)
                         if ctrl_evplot: r2s.append(r2)
                         if np.all((slope > slopeLimits[0]) & (slope < slopeLimits[1]) & (r2 >= 0.99)):
                             qualifyingSlopes.append(ii)
@@ -212,14 +228,24 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
                         ax.set_ylabel(f'λ{j+1}')
         
                     axes[-1].set_xlabel('Time along segment')
-                    # plt.suptitle(f'Eigenvalues near Q-min at t={t_ghost:.3f}, ghost: {ghostCheck}, leaves Uɛ: {leaves_eps_qmin_i}\n'
-                    #             f'sign changes: {ev_signChanges}, qualifying slopes: {len(qualifyingSlopes)}, R²: {ri:.3f for ri in r2s}',fontsize=9)
+                    if evLimit > 0:
+                        qsl = len(qualifyingSlopes)
+                    else:
+                        qsl = 'N/A'
+
+                    Q_mami = np.max(Q_ts[idcs_segment])/Q_ts[i]
+
                     plt.suptitle(
-                    f"Eigenvalues near Q-min at t={t_ghost:.3f}, ghost: {ghostCheck}, leaves Uɛ: {leaves_eps_qmin_i}\n"
-                    f"sign changes λi: {ev_signChanges}, qualifying slopes: {len(qualifyingSlopes)}, "
+                    f"Eig.vals near Qmin at t={t_ghost:.2f}, ghost: {str(ghostCheck)[0]}, leaves Uɛ: {str(leaves_eps_qmin_i)[0]}, Qmami: {Q_mami:.1e} \n"
+                    f"sign changes λi: " + "".join(np.where(ev_signChanges, 'T ', 'F '))+f", qualifying slopes: {qsl}, "
                     f"R²: {[f'{ri:.3f}' for ri in r2s]}", fontsize=9)
-                    plt.xscale(evplot_xscale)
-                    plt.yscale(evplot_yscale)
+                    # plt.suptitle(
+                    # f"Eigenvalues near Q-min at t={t_ghost:.2f}, ghost: {str(ghostCheck)[0]}, leaves Uɛ: {str(leaves_eps_qmin_i)[0]}, "
+                    # f"Qmami: {Q_mami:.1e}" if Q_mami >= 1000 else f"Qmami: {Q_mami:.1f}\n"
+                    # f"sign changes λi: " + "".join(np.where(ev_signChanges, 'T ', 'F ')) + f", qualifying slopes: {qsl}, "
+                    # f"R²: {[f'{ri:.3f}' for ri in r2s]}", fontsize=9)
+                    ax.set_xscale(evplot_xscale)
+                    ax.set_yscale(evplot_yscale)
                     plt.tight_layout()
                     if return_ctrl_figs:
                         ctrl_figures.append((fig,axes))
@@ -245,9 +271,9 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
                                 "duration": dur_ghost,
                                 "position": trajectory[i],
                                 "dimension": gdim,
-                                "q-value:": Q_ts[i],
+                                "q-value": Q_ts[i],
                                 "crossing_eigenvalues": np.where(np.array(ev_signChanges)==True)[0],
-                                "qualifying_slopes:":qualifyingSlopes
+                                "qualifying_slopes":qualifyingSlopes
                                 }
                         else:  # current ghost has already been found previously
                             gidx = np.where(distances < epsilon_SN_ghosts)[0][0] + 1
@@ -257,9 +283,9 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
                                 "duration": dur_ghost,
                                 "position": trajectory[i],
                                 "dimension": gdim,
-                                "q-value:": Q_ts[i],
+                                "q-value": Q_ts[i],
                                 "crossing_eigenvalues": np.where(np.array(ev_signChanges)==True)[0],
-                                "qualifying_slopes:":qualifyingSlopes
+                                "qualifying_slopes":qualifyingSlopes
                                 }
                         ghostSeq.append(ghost)
                     else:  # No ghost previously found yet
@@ -276,7 +302,8 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
                         ghostSeq.append(ghost)
                         ghostCoordinates.append(trajectory[i])
             else:
-                print("GhostID: Trajectory does not leave U_eps - stopping ghostID.")
+                if display_warnings:
+                    print("GhostID: Trajectory does not leave U_eps - stopping ghostID.")
                 break
 
 
@@ -304,19 +331,42 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin, evLimit=0.1, epsilon_SN
         return fullTransientSeq, ctrl_figures
 
 def ghostID_phaseSpaceSample(model, model_params, t_start, t_end, dt, state_ranges,
-                             epsilon_gid=0.1, epsilon_uni=0.1, n_samples=50,
-                             method='RK45', rtol=1.e-6, atol=1.e-6,
-                             n_workers=None, **kwargs):
+                             method='RK45', rtol=1.e-3, atol=1.e-6, n_workers=None, **kwargs):
     """
     Adaptive parallel version:
       - Uses threads when run in Spyder/Jupyter (no pickling issues)
       - Uses processes when run as a standalone script for full CPU utilization
     """
 
-    # ---- Parameters ----
-    peak_kwargs = kwargs.get("peak_kwargs", {})
+    # # ---- Parameters ----
+    # peak_kwargs = kwargs.get("peak_kwargs", {})
+    # ctrlOutputs = kwargs.get("ctrlOutputs", {})
+    # model_batch = kwargs.get("batchModel", make_batch_model(model, model_params))
+    
+    # Parse and validate kwargs
+    config = parse_kwargs(**kwargs)
+
+    display_warnings = config['display_warnings']
+    
+    # Extract parameters from config
+    epsilon_SN_ghosts = config['epsilon_SN_ghosts']
+    peak_kwargs = config['peak_kwargs']
+    if "width" not in peak_kwargs:  
+        peak_kwargs["width"] = 5 * dt   # default if not supplied
+    batchModel = config['batchModel']
+    eigval_NN_sorting = config['eigval_NN_sorting']
+    ev_outlier_removal_ws = config['ev_outlier_removal_ws']
+    ev_outlier_removal_k = config['ev_outlier_removal_k']
+    evLimit = config['evLimit']
+    slopeLimits = config['slopeLimits']
+    epsilon_gid = config['epsilon_gid']
+    epsilon_unify = config['epsilon_unify']
+    n_samples = config['n_samples']
+
+    # Plotting control settings
+    return_ctrl_figs = config['return_ctrl_figs']
     ctrlOutputs = kwargs.get("ctrlOutputs", {})
-    model_batch = kwargs.get("batchModel", make_batch_model(model, model_params))
+
     if n_workers is None:
         n_workers = max(1, (os.cpu_count() or 4) - 1)
 
@@ -339,9 +389,16 @@ def ghostID_phaseSpaceSample(model, model_params, t_start, t_end, dt, state_rang
         sol = solve_ivp(model, (t_start, t_end), ic,
                         t_eval=t_eval, args=(model_params,),
                         method=method, rtol=rtol, atol=atol)
-        ghostSeq = ghostID(model, model_params, dt, sol.y.T,
-                           epsilon_gid, peak_kwargs=peak_kwargs,
-                           batchModel=model_batch,ctrlOutputs=ctrlOutputs)
+        ghostSeq_ = ghostID(model, model_params, dt, sol.y.T,
+                           epsilon_gid, epsilon_SN_ghosts=epsilon_SN_ghosts,peak_kwargs=peak_kwargs,
+                           batchModel=batchModel,return_ctrl_figs=return_ctrl_figs,ctrlOutputs=ctrlOutputs,
+                           evLimit=evLimit,slopeLimits=slopeLimits,eigval_NN_sorting=eigval_NN_sorting,
+                           ev_outlier_removal_ws=ev_outlier_removal_ws,ev_outlier_removal_k=ev_outlier_removal_k,
+                           display_warnings=display_warnings)
+        if return_ctrl_figs == False:
+                ghostSeq = ghostSeq_
+        else:
+            ghostSeq, ctrl_figures = ghostSeq_ #ignore ctrl_figures for now
         return ghostSeq if ghostSeq else None
 
     # ---- Parallel execution ----
@@ -355,7 +412,7 @@ def ghostID_phaseSpaceSample(model, model_params, t_start, t_end, dt, state_rang
                 ghostSeqs.append(res)
 
     # ---- Unify results ----
-    ghostSeqs_unified = unify_IDs(ghostSeqs, epsilon_uni)
+    ghostSeqs_unified = unify_IDs(ghostSeqs, epsilon_unify)
     return ghostSeqs_unified
 
 def find_local_Qminimum(F, x0, p, delta=0.5, method='L-BFGS-B',
@@ -487,17 +544,53 @@ def qOnGrid(F, p, coords=None, dim=None, n_points=50, ranges=None, overrides=Non
 def track_ghost_branch(ghost, model, model_params, par_nr, par_steps, dpar, t_end, dt, delta=0.5, icStep=0.1, mode="first",
                              epsilon_gid=0.1,solve_ivp_method='RK45', rtol=1.e-3, atol=1.e-6, qmin_method="BFGS",qmin_tol=1e-6,**kwargs):
     
-    # ---- Parameters ----
-    peak_kwargs = kwargs.get("peak_kwargs", {})
-    ctrlOutputs = kwargs.get("ctrlOutputs", {})
-    model_batch = kwargs.get("batchModel", make_batch_model(model, model_params))
+    # # ---- Parameters ----
+    # evLimit = kwargs.get("evLimit", None)
+    # slopeLimits = kwargs.get("slopeLimits", None)
+    # peak_kwargs = kwargs.get("peak_kwargs", {})
+    # ctrlOutputs = kwargs.get("ctrlOutputs", {})
+    # model_batch = kwargs.get("batchModel", make_batch_model(model, model_params))
+
+    # if "ctrlOutputs" in kwargs:
+    #     if "return_ctrl_figs" in kwargs["ctrlOutputs"]:
+    #         return_ctrl_figs = kwargs["ctrlOutputs"]["return_ctrl_figs"]
+    #     else:
+    #         return_ctrl_figs = False
+    # else:
+    #     return_ctrl_figs = False
     
-    if "distQminThr" in kwargs:
-        distQminThr = kwargs["distQminThr"]
-    else:
-        distQminThr = np.inf 
+    # if "distQminThr" in kwargs:
+    #     distQminThr = kwargs["distQminThr"]
+    # else:
+    #     distQminThr = np.inf 
+
+    # Parse and validate kwargs
+    config = parse_kwargs(**kwargs)
+    
+    display_warnings = config['display_warnings']
+
+    # Extract parameters from config
+    epsilon_SN_ghosts = config['epsilon_SN_ghosts']
+    peak_kwargs = config['peak_kwargs']
+    if "width" not in peak_kwargs:  
+        peak_kwargs["width"] = 5 * dt   # default if not supplied
+    batchModel = config['batchModel']
+    eigval_NN_sorting = config['eigval_NN_sorting']
+    ev_outlier_removal_ws = config['ev_outlier_removal_ws']
+    ev_outlier_removal_k = config['ev_outlier_removal_k']
+    evLimit = config['evLimit']
+    slopeLimits = config['slopeLimits']
+    
+    # Plotting control settings
+    return_ctrl_figs = config['return_ctrl_figs']
+    ctrlOutputs = kwargs.get("ctrlOutputs", {})
+
+    # 
+    distQminThr = config['distQminThr'] 
+
     
     ghostSeq_p = []
+    ctrl_figures_p = []
     parSeq = []
     
     parNext = model_params[par_nr] 
@@ -542,9 +635,21 @@ def track_ghost_branch(ghost, model, model_params, par_nr, par_steps, dpar, t_en
         
             sol = solve_ivp(model, (0,t_end), ic_pick, t_eval=np.asarray(np.arange(0, t_end, dt)), rtol=rtol, atol=atol, args=([model_params_]), method=solve_ivp_method)
             
-            ghostSeq = ghostID(model, model_params_, dt, sol.y.T,
-                            epsilon_gid, peak_kwargs=peak_kwargs,
-                            batchModel=model_batch,ctrlOutputs=ctrlOutputs)
+            gid_output = ghostID(model, model_params, dt, sol.y.T,
+                           epsilon_gid, epsilon_SN_ghosts=epsilon_SN_ghosts,peak_kwargs=peak_kwargs,
+                           batchModel=batchModel,return_ctrl_figs=return_ctrl_figs,ctrlOutputs=ctrlOutputs,
+                           evLimit=evLimit,slopeLimits=slopeLimits,eigval_NN_sorting=eigval_NN_sorting,
+                           ev_outlier_removal_ws=ev_outlier_removal_ws,ev_outlier_removal_k=ev_outlier_removal_k,
+                           display_warnings=display_warnings)
+            # ghostID(model, model_params_, dt, sol.y.T,
+            #                 epsilon_gid, evLimit=evLimit, slopeLimits=slopeLimits, peak_kwargs=peak_kwargs,
+            #                 batchModel=model_batch,ctrlOutputs=ctrlOutputs)
+            
+            if return_ctrl_figs == False:
+                ghostSeq = gid_output
+            else:
+                ghostSeq, ctrl_figures = gid_output
+                ctrl_figures_p.append(ctrl_figures)
             
             if len(ghostSeq)>0:
                 
@@ -578,8 +683,12 @@ def track_ghost_branch(ghost, model, model_params, par_nr, par_steps, dpar, t_en
         
     ghostPositions = np.asarray([ghostSeq_p[ii]["position"] for ii in range(len(ghostSeq_p))])
     
-    return ghostPositions, np.asarray(parSeq), ghostSeq_p
-    
+    if return_ctrl_figs == False:
+        return ghostPositions, np.asarray(parSeq), ghostSeq_p
+    else:
+        return ghostPositions, np.asarray(parSeq), ghostSeq_p, ctrl_figures_p
+
+
 
 ###############
 
@@ -642,65 +751,246 @@ def unique_ghosts(gSeq):
             
 #############
 
+# def unify_IDs(Seqs, epsilon_SN_ghosts=0.1):
+#     """
+#     Unify ids across multiple sequences of transient ghost state objects found in timecourse simulations.
 
+#     Arguments:
+#         Seqs: list of lists of dicts, each dict with keys 'position' (np.ndarray) and 'id' (str: 'G{i}').
+#         epsilon_SN_gs: distance threshold for equating SN ghosts.
 
-def unify_IDs(Seqs, epsilon_SN_ghosts=0.1):
+#     Returns:
+#         The same list Seqs with updated, unified 'id' strings.
+#     """
+#     # Initialize known objects from first sequence
+#     first = Seqs[0]
+#     known_G = {}  # id_str -> position (representative)
+
+#     # Track maximum numeric index seen
+#     max_g = 0
+
+#     for obj in first:
+#         pid = obj['id']
+#         if pid.startswith('G'):
+#             idx = int(pid[1:])
+#             known_G[pid] = obj['position'].copy()
+#             max_g = max(max_g, idx)
+    
+#     # Process subsequent sequences
+#     for seq in Seqs[1:]:
+#         for obj in seq:
+#             pos = obj['position']
+#             orig = obj['id']
+#             if orig.startswith('G'):
+#                 # check against known_G
+#                 matched = False
+#                 for pid, refpos in known_G.items():
+#                     if np.linalg.norm(pos - refpos) < epsilon_SN_ghosts:
+#                         obj['id'] = pid
+#                         matched = True
+#                         break
+#                 if not matched:
+#                     max_g += 1
+#                     new_id = f'G{max_g}'
+#                     obj['id'] = new_id
+#                     known_G[new_id] = pos.copy()   
+#             else:
+#                 # Unknown id format, leave unchanged or raise error
+#                 raise ValueError(f"Unrecognized id '{orig}'")
+#     return Seqs
+
+def unify_IDs(Seqs, epsilon_SN_ghosts=0.1, update=True):
     """
-    Unify ids across multiple sequences of transient ghost state objects found in timecourse simulations.
+    Unify ids across multiple sequences of transient ghost state objects
+    found in timecourse simulations.
 
-    Arguments:
-        Seqs: list of lists of dicts, each dict with keys 'position' (np.ndarray) and 'id' (str: 'G{i}').
-        epsilon_SN_gs: distance threshold for equating SN ghosts.
+    Parameters
+    ----------
+    Seqs : list[list[dict]]
+        Each inner list corresponds to one simulation run.
+        Each dict represents a ghost state and must contain:
+            - 'position'  : np.ndarray, phase-space position of the ghost
+            - 'id'        : str of the form 'G{i}'
+            - 'q-value'   : float, scalar quality / stability measure
+            - 'dimension' : int, dimension associated with the ghost
 
-    Returns:
-        The same list Seqs with updated, unified 'id' strings.
+    epsilon_SN_ghosts : float, optional
+        Distance threshold below which two ghost states are considered
+        identical (i.e. the same ghost across runs).
+
+    update : bool, optional (default=True)
+        If True, perform a second pass after ID unification that
+        synchronizes properties (position, q-value, dimension)
+        across all ghosts sharing the same ID.
+
+    Returns
+    -------
+    Seqs : list[list[dict]]
+        The same list structure, with unified IDs and (optionally)
+        updated ghost properties.
     """
-    # Initialize known objects from first sequence
+
+    # ------------------------------------------------------------------
+    # STEP 1: Initialize reference ghosts from the first sequence
+    # ------------------------------------------------------------------
+
     first = Seqs[0]
-    known_G = {}  # id_str -> position (representative)
 
-    # Track maximum numeric index seen
+    # Dictionary mapping ghost ID -> representative position
+    known_G = {}
+
+    # Track the highest numerical ghost index encountered so far
     max_g = 0
 
     for obj in first:
         pid = obj['id']
         if pid.startswith('G'):
-            idx = int(pid[1:])
+            idx = int(pid[1:])            # extract numerical part of ID
             known_G[pid] = obj['position'].copy()
             max_g = max(max_g, idx)
-    
-    # Process subsequent sequences
+        else:
+            raise ValueError(f"Unrecognized id '{pid}'")
+
+    # ------------------------------------------------------------------
+    # STEP 2: Unify IDs across all subsequent sequences
+    # ------------------------------------------------------------------
+
     for seq in Seqs[1:]:
         for obj in seq:
             pos = obj['position']
             orig = obj['id']
-            if orig.startswith('G'):
-                # check against known_G
-                matched = False
-                for pid, refpos in known_G.items():
-                    if np.linalg.norm(pos - refpos) < epsilon_SN_ghosts:
-                        obj['id'] = pid
-                        matched = True
-                        break
-                if not matched:
-                    max_g += 1
-                    new_id = f'G{max_g}'
-                    obj['id'] = new_id
-                    known_G[new_id] = pos.copy()   
-            else:
-                # Unknown id format, leave unchanged or raise error
+
+            if not orig.startswith('G'):
                 raise ValueError(f"Unrecognized id '{orig}'")
+
+            # Try to match this ghost against previously known ghosts
+            matched = False
+            for pid, refpos in known_G.items():
+                # Compare Euclidean distance in phase space
+                if np.linalg.norm(pos - refpos) < epsilon_SN_ghosts:
+                    obj['id'] = pid         # reuse existing ID
+                    matched = True
+                    break
+
+            # If no match was found, register a new ghost ID
+            if not matched:
+                max_g += 1
+                new_id = f'G{max_g}'
+                obj['id'] = new_id
+                known_G[new_id] = pos.copy()
+
+    # ------------------------------------------------------------------
+    # STEP 3 (optional): Update ghost properties across identical IDs
+    # ------------------------------------------------------------------
+
+    if update:
+        # Collect all ghosts grouped by ID
+        ghosts_by_id = {}
+        for seq in Seqs:
+            for obj in seq:
+                gid = obj['id']
+                ghosts_by_id.setdefault(gid, []).append(obj)
+
+        # For each ghost ID, synchronize properties
+        for gid, ghosts in ghosts_by_id.items():
+            # ----------------------------------------------------------
+            # (a) Find ghost with minimal q-value
+            # ----------------------------------------------------------
+            missing = [o for o in ghosts if 'q-value' not in o]
+            if missing:
+                print(f"Ghosts missing q-value for id {gid}:")
+                for m in missing:
+                    print(m.keys())
+            ref = min(ghosts, key=lambda o: o['q-value'])
+            ref_pos = ref['position'].copy()
+            ref_q   = ref['q-value']
+
+            # ----------------------------------------------------------
+            # (b) Find maximal dimension across ghosts with this ID
+            # ----------------------------------------------------------
+            max_dim = max(o['dimension'] for o in ghosts)
+
+            # ----------------------------------------------------------
+            # (c) Update all ghosts with synchronized values
+            # ----------------------------------------------------------
+            for o in ghosts:
+                o['position']  = ref_pos.copy()
+                o['q-value']   = ref_q
+                o['dimension'] = max_dim
+
     return Seqs
 
 
 ######################################
 
-def draw_network(adj_matrix, nodeColMap, nlbls):
+# def draw_network(adj_matrix, nodeColMap, nlbls):
+
+#     # Note: using this function requies pygraphviz to be installed
+#     # https://pygraphviz.github.io/documentation/stable/install.html
+
+#     nw_dim = adj_matrix.shape[0]
+#     G = nx.from_numpy_array(adj_matrix.transpose(), create_using=nx.DiGraph)
+
+#     # Define edges
+#     inhEdges, actEdges = [], []
+#     for i in range(nw_dim):
+#         for ii in range(nw_dim):
+#             if adj_matrix[i, ii] == 1:
+#                 G.add_edge(i, ii, weight=1)
+#                 actEdges.append((i, ii))
+#             elif adj_matrix[i, ii] == -1:
+#                 G.add_edge(i, ii, weight=-1)
+#                 inhEdges.append((i, ii))
+
+#     # Apply Graphviz 'dot' layout
+#     graphviz_args = "-Nwidth=350 -Nheight=350 -Nfixedsize=true -Goverlap=scale -Gnodesep=5000 -Granksep=200 -Nshape=oval -Nfontsize=14 -Econstraint=true"
+#     pos = graphviz_layout(G, prog='fdp',args=graphviz_args)
+
+#     # Draw nodes
+#     node_opts = {"node_size": 1800, "edgecolors": "lightgrey"}
+#     nx.draw_networkx_nodes(G, pos, node_color=nodeColMap, **node_opts, alpha=0.90)
+    
+#     # Draw custom edges using the modified arrow approach.
+#     # Adjust head_length, head_width, etc. as desired.
+#     draw_custom_edges(G, pos, actEdges, color="k", head_length=8, head_width=4, width=1.1, trim_fraction=0.2)
+#     draw_custom_edges(G, pos, inhEdges, color="red", head_length=8, head_width=4, width=1.1, trim_fraction=0.2)
+    
+#     # Draw labels
+#     labels = {i: nlbls[i] for i in range(nw_dim)}
+#     nx.draw_networkx_labels(G, pos, labels, font_size=16.5, font_weight="bold")
+
+#     plt.axis("off")
+
+def draw_network(
+    adj_matrix,
+    nodeColMap,
+    nlbls,
+    layout="fdp",
+    graphviz_args=None,
+    layout_kwargs=None,
+    rankdir="TB",
+    node_size=1800,           
+    label_font_size=16.5,     
+    font="Arial"
+):
+    """
+    layout options
+    --------------
+    Graphviz:
+        'fdp', 'dot', 'neato', 'sfdp', 'circo'
+    Semantic aliases:
+        'hierarchical' -> Graphviz 'dot'
+    NetworkX:
+        any nx.*_layout function (NOT nx.draw_*)
+    """
+
+    if layout_kwargs is None:
+        layout_kwargs = {}
 
     nw_dim = adj_matrix.shape[0]
     G = nx.from_numpy_array(adj_matrix.transpose(), create_using=nx.DiGraph)
 
-    # Define edges
+    # --- Define edges ------------------------------------------------------
     inhEdges, actEdges = [], []
     for i in range(nw_dim):
         for ii in range(nw_dim):
@@ -711,22 +1001,60 @@ def draw_network(adj_matrix, nodeColMap, nlbls):
                 G.add_edge(i, ii, weight=-1)
                 inhEdges.append((i, ii))
 
-    # Apply Graphviz 'dot' layout
-    graphviz_args = "-Nwidth=350 -Nheight=350 -Nfixedsize=true -Goverlap=scale -Gnodesep=5000 -Granksep=200 -Nshape=oval -Nfontsize=14 -Econstraint=true"
-    pos = graphviz_layout(G, prog='fdp',args=graphviz_args)
+    # --- Layout handling ---------------------------------------------------
+    if graphviz_args is None:
+        graphviz_args = (
+            f"-Grankdir={rankdir} "
+            "-Nwidth=350 -Nheight=350 -Nfixedsize=true "
+            "-Goverlap=scale -Gnodesep=5000 -Granksep=200 "
+            "-Nshape=oval -Nfontsize=14 -Econstraint=true"
+        )
 
-    # Draw nodes
-    node_opts = {"node_size": 1800, "edgecolors": "lightgrey"}
-    nx.draw_networkx_nodes(G, pos, node_color=nodeColMap, **node_opts, alpha=0.90)
-    
-    # Draw custom edges using the modified arrow approach.
-    # Adjust head_length, head_width, etc. as desired.
-    draw_custom_edges(G, pos, actEdges, color="k", head_length=8, head_width=4, width=1.1, trim_fraction=0.2)
-    draw_custom_edges(G, pos, inhEdges, color="red", head_length=8, head_width=4, width=1.1, trim_fraction=0.2)
-    
-    # Draw labels
+    if layout == "hierarchical":
+        layout = "dot"
+
+    if isinstance(layout, str):
+        pos = graphviz_layout(G, prog=layout, args=graphviz_args)
+
+    elif callable(layout):
+        if layout.__name__.startswith("draw_"):
+            raise ValueError(
+                f"{layout.__name__} is a drawing function. "
+                "Use a layout function like nx.spectral_layout instead."
+            )
+        pos = layout(G, **layout_kwargs)
+
+    else:
+        raise ValueError("layout must be a string or a callable")
+
+    # --- Draw nodes --------------------------------------------------------
+    node_opts = {
+        "node_size": node_size,
+        "edgecolors": "white",
+    }
+    nx.draw_networkx_nodes(
+        G, pos, node_color=nodeColMap, **node_opts, alpha=0.90
+    )
+
+    # --- Draw edges --------------------------------------------------------
+    draw_custom_edges(
+        G, pos, actEdges,
+        color="k", head_length=8, head_width=4,
+        width=1.1, trim_fraction=0.2
+    )
+    draw_custom_edges(
+        G, pos, inhEdges,
+        color="red", head_length=8, head_width=4,
+        width=1.1, trim_fraction=0.2
+    )
+
+    # --- Draw labels -------------------------------------------------------
     labels = {i: nlbls[i] for i in range(nw_dim)}
-    nx.draw_networkx_labels(G, pos, labels, font_size=16.5, font_weight="bold")
-
-    plt.tight_layout()
-    plt.axis("off")
+    nx.draw_networkx_labels(
+    G,
+    pos,
+    labels,
+    font_size=label_font_size,
+    font_weight="bold",
+    font_family=font,
+)

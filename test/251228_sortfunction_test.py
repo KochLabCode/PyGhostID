@@ -26,49 +26,6 @@ def sort_closest(x):
             x_[j,t+1] = x[idx,t+1]
     return x_
 
-# from scipy.optimize import linear_sum_assignment
-
-# def sort_assignment(x):
-#     x_ = np.zeros_like(x)
-#     x_[:, 0] = x[:, 0]
-
-#     for t in range(x.shape[1] - 1):
-#         # cost matrix
-#         # C = np.abs(
-#         #     x_[:, t][:, None] - x[:, t+1][None, :]
-#         # )
-#         C = (
-#     np.abs(x_[:, t][:, None] - x[:, t+1][None, :]) +
-#     0.1 * np.abs(
-#         (x_[:, t] - x_[:, t-1])[:, None]
-#         - (x[:, t+1] - x[:, t])[None, :]
-#     )
-# )
-
-#         # optimal assignment
-#         row_ind, col_ind = linear_sum_assignment(C)
-
-#         x_[:, t+1] = x[col_ind, t+1]
-
-#     return x_
-
-# def sort_with_acceleration(x, lam=5.0):
-#     # from scipy.optimize import linear_sum_assignment
-
-#     x_ = np.zeros_like(x)
-#     x_[:, :2] = x[:, :2]
-
-#     for t in range(1, x.shape[1]-1):
-#         pos = np.abs(x_[:, t][:, None] - x[:, t+1][None, :])
-#         acc = np.abs(
-#             (x_[:, t] - x_[:, t-1])[:, None]
-#             - (x[:, t+1] - x[:, t])[None, :]
-#         )
-#         C = pos + lam * acc
-#         _, col = linear_sum_assignment(C)
-#         x_[:, t+1] = x[col, t+1]
-
-#     return x_
 
 # original timeseries
 t = np.linspace(0,10,100)
