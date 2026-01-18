@@ -1,0 +1,27 @@
+# parameters 
+par GMT = 0
+par Tcrit1 = 1.5
+par Tcrit2 = 1.6
+par d = 0.15
+par s12 = 1
+par s21 = 1
+par tau1 = 500
+par tau2 = 5000
+
+x1'=(x1-x1^3+(4/27)^0.5*GMT/Tcrit1 + d*s21*(x2+1)/10)/tau1
+x2'=(x2-x2^3+(4/27)^0.5*GMT/Tcrit2 + d*s12*(x1+1)/10)/tau2
+
+x1(0)=0
+x2(0)=0
+
+@ nplot=1
+@ nmesh=400
+@ total=1e4,xp=x1,yp=x2,xlo=-2,xhi=2,ylo=-2,yhi=2
+@ meth=rungekutta, dt=10, atol=1e-5
+
+# Some AUTO parameters
+@ autovar=x,autoxmin=-2,autoymin=-2,autoxmax=-2,autoymax=-2
+@ ntst=1000,nmax=200,npr=500,ds=0.001,dsmin=0.0001,dsmax=0.05
+@ ncol=4,epsl=1e-4,parmin=0,parmax=3,normmin=0,normmax=1000
+@ epsu=1e-4,epss=0.0001
+done

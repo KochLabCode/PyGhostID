@@ -11,7 +11,14 @@ import jax
 import jax.numpy as jnp
 from scipy.signal import find_peaks
 from scipy.spatial import cKDTree
-from scipy.optimize import minimize, differential_evolution
+from scipy.optimize import (
+    minimize,
+    differential_evolution,
+    dual_annealing,
+    basinhopping,
+)
+from scipy.stats import qmc
+
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -176,6 +183,15 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin=0.05, **kwargs):
             # KD-tree neighborhood query
             idcs_Ueps_qmin = kdtree.query_ball_point(qmin_xyz, epsilon_Qmin)
             idcs_Ueps_qmin = np.sort(np.asarray(idcs_Ueps_qmin, dtype=int))
+            
+            # print(len(idcs_Ueps_qmin), np.min(idcs_Ueps_qmin), np.max(idcs_Ueps_qmin))
+            if len(idcs_Ueps_qmin)<5:
+                print("ghostID error: insuffienct number of points in Ueps!")
+                if not(return_ctrl_figs):    
+                    return []
+                else:
+                    return [], ctrl_figures
+
             idcs_segment = trjSegment(idcs_Ueps_qmin, i)
 
             # Check if trajectory leaves the epsilon environment
@@ -362,6 +378,7 @@ def ghostID_phaseSpaceSample(model, model_params, t_start, t_end, dt, state_rang
     epsilon_gid = config['epsilon_gid']
     epsilon_unify = config['epsilon_unify']
     n_samples = config['n_samples']
+    seed = config['seed']
 
     # Plotting control settings
     return_ctrl_figs = config['return_ctrl_figs']
@@ -372,8 +389,9 @@ def ghostID_phaseSpaceSample(model, model_params, t_start, t_end, dt, state_rang
 
     npts = int(t_end / dt)
     t_eval = np.linspace(0, t_end, npts + 1)
-    ICs = phaseSpaceLHS(state_ranges, n_samples)
 
+    ICs = phaseSpaceLHS(state_ranges, n_samples, seed)
+    
     # ---- Choose backend automatically ----
     in_spyder_or_jupyter = (
         "SPYDER" in sys.modules or
@@ -415,92 +433,253 @@ def ghostID_phaseSpaceSample(model, model_params, t_start, t_end, dt, state_rang
     ghostSeqs_unified = unify_IDs(ghostSeqs, epsilon_unify)
     return ghostSeqs_unified
 
-def find_local_Qminimum(F, x0, p, delta=0.5, method='L-BFGS-B',
-                               n_global_iter=1000, tol_glob=0.01,tol_grad=1e-6, max_iter_local=500,
-                               verbose=False):
+def make_batch_model(model, params):
     """
-    Finds a local minimum of Q(x) = 0.5 * ||F||^2 near x0 in arbitrary dimensions.
-    Performs radius-constrained global search using differential evolution,
-    followed by SciPy local refinement.
+    Wrap a single-point model into a batch version using vmap.
+    
+    model: function (t, z, params) -> dz/dt
+    params: model parameters (passed unchanged)
+    
+    Returns: function (Zs, params) -> dZs/dt for batch input
+             where Zs has shape (num_points, n).
+    """
+    def single(z):
+        return model(0, z, params)   # ignore t (or pass if needed)
+    
+    batched = jax.vmap(single)
+    return batched
 
-    Parameters
-    ----------
-    F : callable
-        Vector field F(t, x, p)
-    x0 : array_like
-        Initial point in phase space (any dimension)
-    p : array_like
-        Model parameters
-    delta : float
-        Maximum distance from x0 for global search and final refinement
-    method : str
-        SciPy local optimization method ('BFGS', 'L-BFGS-B', 'CG')
-    n_global_iter : int
-        Number of iterations for differential evolution
-    tol_grad : float
-        Gradient tolerance for local refinement
-    max_iter_local : int
-        Maximum iterations for local refinement
-    verbose : bool
-        Print progress messages
+# def find_local_Qminimum(F, x0, p, delta=0.5, method='L-BFGS-B',
+#                                n_global_iter=1000, tol_glob=0.01,tol_grad=1e-6, max_iter_local=500,
+#                                verbose=False):
+#     """
+#     Finds a local minimum of Q(x) = 0.5 * ||F||^2 near x0 in arbitrary dimensions.
+#     Performs radius-constrained global search using differential evolution,
+#     followed by SciPy local refinement.
 
-    Returns
-    -------
-    x_min : np.ndarray
-        Coordinates of the local minimum
-    Q_min : float
-        Q value at the local minimum
-    res_local : OptimizeResult
-        SciPy local minimization result
+#     Parameters
+#     ----------
+#     F : callable
+#         Vector field F(t, x, p)
+#     x0 : array_like
+#         Initial point in phase space (any dimension)
+#     p : array_like
+#         Model parameters
+#     delta : float
+#         Maximum distance from x0 for global search and final refinement
+#     method : str
+#         SciPy local optimization method ('BFGS', 'L-BFGS-B', 'CG')
+#     n_global_iter : int
+#         Number of iterations for differential evolution
+#     tol_grad : float
+#         Gradient tolerance for local refinement
+#     max_iter_local : int
+#         Maximum iterations for local refinement
+#     verbose : bool
+#         Print progress messages
+
+#     Returns
+#     -------
+#     x_min : np.ndarray
+#         Coordinates of the local minimum
+#     Q_min : float
+#         Q value at the local minimum
+#     res_local : OptimizeResult
+#         SciPy local minimization result
+#     """
+
+#     x0 = jnp.array(x0)
+#     dim = x0.shape[0]
+
+#     # Scalar field Q(x) = 0.5 * ||F||²
+#     def Q_func(x):
+#         z = jnp.array(x)
+#         return float(0.5 * jnp.sum(F(0.0, z, p)**2))
+
+#     # Gradient using JAX
+#     grad_Q = lambda x: np.array(jax.grad(lambda z: 0.5*jnp.sum(F(0.0, jnp.array(z), p)**2))(x))
+
+#     # -----------------------------
+#     # Global search using differential evolution
+#     # -----------------------------
+#     if verbose:
+#         print(f"Running global search with differential evolution (radius {delta}) ...")
+
+#     # Bounds per dimension for radius constraint
+#     bounds = [(float(x0[i]-delta), float(x0[i]+delta)) for i in range(dim)]
+
+#     result_global = differential_evolution(Q_func, bounds, maxiter=n_global_iter, tol=tol_glob, disp=verbose, polish=False)
+#     x_global_best = result_global.x
+#     Q_global_best = Q_func(x_global_best)
+
+#     if verbose:
+#         print(f"Global search best Q = {Q_global_best:.3e}")
+
+#     # -----------------------------
+#     # Optional: local refinement using SciPy minimize
+#     # -----------------------------
+#     if method not in ['None']:
+#         if verbose:
+#             print(f"Refining local minimum with {method} ...")
+    
+#         res_local = minimize(Q_func, x_global_best, jac=grad_Q, method=method,
+#                              tol=tol_grad, options={'maxiter': max_iter_local, 'disp': verbose},
+#                              bounds=bounds if method in ['L-BFGS-B', 'TNC', 'SLSQP'] else None)
+    
+#         x_min = res_local.x
+#         Q_min = Q_func(x_min)
+    
+#         if verbose:
+#             print(f"Refined local minimum Q = {Q_min:.3e} at x = {x_min}")
+
+#         return x_min, Q_min, res_local
+    
+#     return x_global_best, Q_global_best, result_global
+
+def find_local_Qminimum(
+    F,
+    x0,
+    p,
+    delta,
+    *,
+    global_method="lhs",
+    local_method="L-BFGS-B",
+    global_options=None,
+    local_options=None,
+    verbose=False,
+):
+    """
+    Find a local minimum of Q(x) = 0.5 * ||F||^2 near x0.
     """
 
-    x0 = jnp.array(x0)
-    dim = x0.shape[0]
+    x0 = np.asarray(x0, dtype=float)
+    dim = x0.size
+    bounds = [(x0[i] - delta, x0[i] + delta) for i in range(dim)]
 
-    # Scalar field Q(x) = 0.5 * ||F||²
+    global_options = {} if global_options is None else dict(global_options)
+    local_options = {} if local_options is None else dict(local_options)
+
+
+    # --------------------------------------------------
+    # Define Q and grad Q
+    # --------------------------------------------------
     def Q_func(x):
-        z = jnp.array(x)
-        return float(0.5 * jnp.sum(F(0.0, z, p)**2))
+        z = jnp.asarray(x)
+        return float(0.5 * jnp.sum(F(0.0, z, p) ** 2))
 
-    # Gradient using JAX
-    grad_Q = lambda x: np.array(jax.grad(lambda z: 0.5*jnp.sum(F(0.0, jnp.array(z), p)**2))(x))
+    grad_Q = jax.grad(lambda z: 0.5 * jnp.sum(F(0.0, z, p) ** 2))
 
-    # -----------------------------
-    # Global search using differential evolution
-    # -----------------------------
+    def grad_Q_np(x):
+        return np.asarray(grad_Q(jnp.asarray(x)))
+
+    # --------------------------------------------------
+    # Global search
+    # --------------------------------------------------
     if verbose:
-        print(f"Running global search with differential evolution (radius {delta}) ...")
+        print(f"[Q-min] Global search method: {global_method}")
 
-    # Bounds per dimension for radius constraint
-    bounds = [(float(x0[i]-delta), float(x0[i]+delta)) for i in range(dim)]
+    candidate_points = []
 
-    result_global = differential_evolution(Q_func, bounds, maxiter=n_global_iter, tol=tol_glob, disp=verbose, polish=False)
-    x_global_best = result_global.x
-    Q_global_best = Q_func(x_global_best)
+    # ---- LHS ------------------------------------------------
+    if global_method == "lhs":
+         # Compute dimension-aware defaults if None
+        n_samples = global_options.get("n_samples", None)
+        if n_samples is None:
+            n_samples = min(2000, max(200, 20 * dim))
+
+        k_seeds = global_options.get("k_seeds", None)
+        if k_seeds is None:
+            k_seeds = min(5, max(2, int(np.sqrt(dim))))
+            
+        seed = global_options.get("seed", None)
+
+        if verbose:
+            print(
+                f"[Q-min] LHS: n_samples={n_samples}, "
+                f"k_seeds={k_seeds}, seed={seed}"
+            )
+
+        sampler = qmc.LatinHypercube(d=dim, seed=seed)
+        samples = sampler.random(n=n_samples)
+        points = qmc.scale(
+            samples,
+            [b[0] for b in bounds],
+            [b[1] for b in bounds],
+        )
+
+        Q_vals = np.array([Q_func(x) for x in points])
+        best_idx = np.argsort(Q_vals)[:k_seeds]
+        candidate_points = points[best_idx]
+
+    # ---- Differential Evolution -----------------------------
+    elif global_method == "differential_evolution":
+        res = differential_evolution(
+            Q_func,
+            bounds,
+            disp=verbose,
+            **global_options,
+        )
+        candidate_points = [res.x]
+
+    # ---- Dual Annealing -------------------------------------
+    elif global_method == "dual_annealing":
+        res = dual_annealing(
+            Q_func,
+            bounds,
+            **global_options,
+        )
+        candidate_points = [res.x]
+
+    # ---- Basin Hopping --------------------------------------
+    elif global_method == "basin_hopping":
+        minimizer_kwargs = {
+            "method": local_method,
+            "jac": grad_Q_np,
+            "bounds": bounds if local_method in {"L-BFGS-B", "TNC", "SLSQP"} else None,
+        }
+        res = basinhopping(
+            Q_func,
+            x0,
+            minimizer_kwargs=minimizer_kwargs,
+            **global_options,
+        )
+        candidate_points = [res.x]
+
+    else:
+        raise ValueError(f"Unknown global_method '{global_method}'")
+
+    # --------------------------------------------------
+    # Local refinement
+    # --------------------------------------------------
+    if local_method is None:
+        Q_vals = [Q_func(x) for x in candidate_points]
+        best = int(np.argmin(Q_vals))
+        return candidate_points[best], Q_vals[best], None
+
+    results_local = []
+
+    for x_start in candidate_points:
+        res = minimize(
+            Q_func,
+            x_start,
+            jac=grad_Q_np,
+            method=local_method,
+            bounds=bounds if local_method in {"L-BFGS-B", "TNC", "SLSQP"} else None,
+            options={
+                "disp": verbose,
+                **local_options,
+            },
+        )
+        results_local.append(res)
+
+    best_res = min(results_local, key=lambda r: r.fun)
 
     if verbose:
-        print(f"Global search best Q = {Q_global_best:.3e}")
+        print(f"[Q-min] Final Q = {best_res.fun:.3e}")
+        print(f"[Q-min] x = {best_res.x}")
 
-    # -----------------------------
-    # Optional: local refinement using SciPy minimize
-    # -----------------------------
-    if method not in ['None']:
-        if verbose:
-            print(f"Refining local minimum with {method} ...")
-    
-        res_local = minimize(Q_func, x_global_best, jac=grad_Q, method=method,
-                             tol=tol_grad, options={'maxiter': max_iter_local, 'disp': verbose},
-                             bounds=bounds if method in ['L-BFGS-B', 'TNC', 'SLSQP'] else None)
-    
-        x_min = res_local.x
-        Q_min = Q_func(x_min)
-    
-        if verbose:
-            print(f"Refined local minimum Q = {Q_min:.3e} at x = {x_min}")
+    return best_res.x, best_res.fun, best_res
 
-        return x_min, Q_min, res_local
-    
-    return x_global_best, Q_global_best, result_global
 
 def qOnGrid(F, p, coords=None, dim=None, n_points=50, ranges=None, overrides=None, indexing="ij", jit=False):
     if coords is None:
@@ -542,7 +721,7 @@ def qOnGrid(F, p, coords=None, dim=None, n_points=50, ranges=None, overrides=Non
 ###############
 
 def track_ghost_branch(ghost, model, model_params, par_nr, par_steps, dpar, t_end, dt, delta=0.5, icStep=0.1, mode="first",
-                             epsilon_gid=0.1,solve_ivp_method='RK45', rtol=1.e-3, atol=1.e-6, qmin_method="BFGS",qmin_tol=1e-6,**kwargs):
+                             epsilon_gid=0.1,solve_ivp_method='RK45', rtol=1.e-3, atol=1.e-6,**kwargs):
     
     # # ---- Parameters ----
     # evLimit = kwargs.get("evLimit", None)
@@ -585,9 +764,12 @@ def track_ghost_branch(ghost, model, model_params, par_nr, par_steps, dpar, t_en
     return_ctrl_figs = config['return_ctrl_figs']
     ctrlOutputs = kwargs.get("ctrlOutputs", {})
 
-    # 
+    # Q-min search related kwargs
     distQminThr = config['distQminThr'] 
-
+    qmin_glob_method = config['qmin_glob_method']
+    qmin_loc_method = config['qmin_loc_method']
+    qmin_glob_options = config['qmin_glob_options'] 
+    min_loc_options = config['qmin_loc_options'] 
     
     ghostSeq_p = []
     ctrl_figures_p = []
@@ -609,7 +791,13 @@ def track_ghost_branch(ghost, model, model_params, par_nr, par_steps, dpar, t_en
             
             x0 = ghost_["position"]
             
-            qmin = find_local_Qminimum(model, x0, model_params_, delta, tol_glob=qmin_tol,method=qmin_method)[0]
+            # qmin = find_local_Qminimum(model, x0, model_params_, delta, tol_glob=qmin_tol,method=qmin_method)[0]
+            qmin = find_local_Qminimum(model,x0,model_params_,delta,
+                                       global_method=qmin_glob_method,
+                                       local_method=qmin_loc_method,
+                                       global_options=qmin_glob_options, 
+                                       local_options=min_loc_options,
+                                       verbose=False)[0]
                     
             ic_plus, _ , _ = icAtQmin(qmin, icStep ,ghost_["dimension"],model,model_params_)
             ic_minus, _ , _ = icAtQmin(qmin, -icStep ,ghost_["dimension"],model,model_params_)
@@ -628,8 +816,11 @@ def track_ghost_branch(ghost, model, model_params, par_nr, par_steps, dpar, t_en
             elif dist_sol_minus<dist_ic_minus:
                 ic_pick = ic_minus
             else: 
-                print("Error in chosing initial conditions around qmin.")
-                return
+                print("Terminating track_ghost_branch: Error in chosing initial conditions around qmin (both trajectories are diverging). Try different global/local method/options for finding qmin or different icStep size.")
+                if return_ctrl_figs == False:
+                    return None, None, None
+                else:
+                    return None, None, None, None
             
             ic_pick = jnp.real(ic_pick)
         

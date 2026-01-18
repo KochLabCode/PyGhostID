@@ -282,3 +282,53 @@ def nullclines_Wunderling(para, x_range=(-2, 2), y_range=(-2, 2), resolution=200
     f2 = -Y**3 + Y + gamma2 + d/10 * (mat_inter[1,0]*(X+1) + mat_inter[1,1]*(Y+1))
     
     return f1, f2
+
+# def GRN_net(t, x, para):
+
+#     a, b, K, Ka, Ki, A = para
+
+#     N = len(x)
+#     xdot = np.zeros(N)
+
+#     for i in range(N):
+#         # Self activation
+#         self_act = a * x[i]**2 / (x[i]**2 + K**2)
+
+#         # Excitatory inputs
+#         exc_idx = np.where(A[i] == 1)[0]
+#         exc = np.sum(x[exc_idx]**2 / (x[exc_idx]**2 + Ka**2)) if exc_idx.size > 0 else 0.0
+#         exc *= b
+
+#         # Inhibitory inputs (multiplicative)
+#         inh_idx = np.where(A[i] == -1)[0]
+#         inh = np.prod(Ki**2 / (x[inh_idx]**2 + Ki**2)) if inh_idx.size > 0 else 1.0
+
+#         xdot[i] = (self_act + exc)*inh - x[i]
+
+#     return jnp.asarray(xdot)
+
+def GRN_net(t, x, para):
+    a, b, K, Ka, Ki, A = para
+    x = jnp.asarray(x, dtype=jnp.float32)
+
+    # Nonlinear transforms
+    x2 = x**2
+    f_self = a * x2 / (x2 + K**2)                 # shape (N,)
+    f_exc  = x2 / (x2 + Ka**2)                    # shape (N,)
+    f_inh  = Ki**2 / (x2 + Ki**2)                 # shape (N,)
+
+    # Masks
+    exc_mask = (A == 1).astype(float)             # shape (N,N)
+    inh_mask = (A == -1).astype(float)            # shape (N,N)
+
+    # Excitatory sum
+    exc = b * (exc_mask @ f_exc)                  # shape (N,)
+
+    # Inhibitory product
+    # prod_j f_inh[j]^{inh_mask[i,j]}
+    inh = jnp.exp(inh_mask @ jnp.log(f_inh))        # shape (N,)
+
+    # Final ODE
+    xdot = (f_self + exc) * inh - x
+
+    return jnp.asarray(xdot)

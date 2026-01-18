@@ -1,0 +1,26 @@
+# parameters 
+par gamma=2.5
+par h=1
+par v=0.5
+par m=0.4
+par alpha=0.8
+par K=15
+par eps=1
+
+n'=alpha*n*(1-n/K) - gamma*n*p/(n+h)
+p'=eps*(v*gamma*n*p/(n+h) - m*p)
+
+n(0)=0
+p(0)=0
+
+@ nplot=1
+@ nmesh=400
+@ total=500,xp=n,yp=p,xlo=-2,xhi=15,ylo=-2,yhi=15
+@ meth=rungekutta, dt=0.1, atol=1e-5
+
+# Some AUTO parameters
+@ autovar=x,autoxmin=-2,autoymin=-2,autoxmax=-2,autoymax=-2
+@ ntst=1000,nmax=200,npr=500,ds=0.001,dsmin=0.0001,dsmax=0.05
+@ ncol=4,epsl=1e-4,parmin=0,parmax=3,normmin=0,normmax=1000
+@ epsu=1e-4,epss=0.0001
+done

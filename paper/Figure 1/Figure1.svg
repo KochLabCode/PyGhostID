@@ -7,6 +7,9 @@
    id="svg76"
    sodipodi:docname="Figure1.svg"
    inkscape:version="1.4 (86a8ad7, 2024-10-11)"
+   inkscape:export-filename="Figure1.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -25,15 +28,15 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="pt"
-     inkscape:zoom="0.44483074"
-     inkscape:cx="-38.216783"
-     inkscape:cy="239.41691"
+     inkscape:zoom="0.88966148"
+     inkscape:cx="239.41691"
+     inkscape:cy="405.21031"
      inkscape:window-width="1920"
      inkscape:window-height="1009"
      inkscape:window-x="-8"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
-     inkscape:current-layer="figure_1-9"
+     inkscape:current-layer="g4"
      showguides="true">
     <sodipodi:guide
        position="233.63519,381.83911"
@@ -26722,7 +26725,7 @@
   </g>
   <g
      id="PathCollection_2"
-     style="stroke-width:0.6;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none"
+     style="stroke-width:0.6;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;fill:#808080"
      transform="translate(33.290025,102.82147)">
     <defs
        id="defs294">
@@ -26734,28 +26737,28 @@
     <g
        clip-path="url(#pe0d04ed109)"
        id="g295"
-       style="stroke-width:0.6;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none">
+       style="stroke-width:0.6;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;fill:#808080">
       <use
          xlink:href="#m78f24c474b"
          x="275.5368"
          y="141.73228"
-         style="fill:#ffffff;stroke:#000000;stroke-width:0.6;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none"
+         style="fill:#808080;stroke:#000000;stroke-width:0.6;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none"
          id="use294" />
     </g>
   </g>
   <g
      id="PathCollection_4"
-     style="stroke-width:0.6;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none"
+     style="stroke-width:0.6;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;fill:#808080"
      transform="translate(-26.709975,102.82147)">
     <g
        clip-path="url(#p5b360502d2)"
        id="g559"
-       style="stroke-width:0.6;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none">
+       style="stroke-width:0.6;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;fill:#808080">
       <use
          xlink:href="#m78f24c474b"
          x="455.37915"
          y="141.73228"
-         style="fill:#ffffff;stroke:#000000;stroke-width:0.6;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none"
+         style="fill:#808080;stroke:#000000;stroke-width:0.6;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none"
          id="use558" />
     </g>
   </g>
@@ -37297,7 +37300,7 @@
                xlink:href="#m42baca0be0"
                x="95.694473"
                y="141.73228"
-               style="fill:#ffffff;stroke:#000000;stroke-width:0.6;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none"
+               style="fill:#808080;stroke:#000000;stroke-width:0.6;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none"
                id="use3-4" />
           </g>
         </g>

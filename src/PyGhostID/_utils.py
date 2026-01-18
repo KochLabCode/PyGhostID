@@ -124,7 +124,7 @@ def sign_change(arr,OR,OR_ws,OR_k,**kwargs):
 
     return sign_change_occured
 
-def phaseSpaceLHS(ranges, n_samples):
+def phaseSpaceLHS(ranges, n_samples, seed):
     """
     Latin-hypercube sample points from a phase-space region defined by np.linspace ranges.
 
@@ -141,7 +141,7 @@ def phaseSpaceLHS(ranges, n_samples):
         The sampled points within the specified state-space region.
     """
     n_dims = len(ranges)
-    sampler = qmc.LatinHypercube(d=n_dims)
+    sampler = qmc.LatinHypercube(d=n_dims,seed=seed)
     unit_samples = sampler.random(n=n_samples)
 
     # Scale to each dimension’s bounds
@@ -154,7 +154,11 @@ def trjSegment(idcs,iq):
 
     start = np.searchsorted(idcs, iq)
 
-    a,b=iq,iq
+    # a,b=iq,iq
+
+    a = start
+    b = start
+
     
     for i in range(start-1,-1,-1):
         d = idcs[i+1]-idcs[i]
@@ -169,22 +173,6 @@ def trjSegment(idcs,iq):
         b = i
         
     return idcs[np.arange(a, b+1, 1, dtype=int)]
-
-def make_batch_model(model, params):
-    """
-    Wrap a single-point model into a batch version using vmap.
-    
-    model: function (t, z, params) -> dz/dt
-    params: model parameters (passed unchanged)
-    
-    Returns: function (Zs, params) -> dZs/dt for batch input
-             where Zs has shape (num_points, n).
-    """
-    def single(z):
-        return model(0, z, params)   # ignore t (or pass if needed)
-    
-    batched = jax.vmap(single)
-    return batched
 
 # ---------------- JAX Jacobian utility ----------------
 def make_jacfun(model, params):
@@ -369,13 +357,60 @@ def parse_kwargs(**kwargs):
         config['slopeLimits'] = np.array([0, np.inf])
     
     #############################################################
-
-    # track_ghost_branch specific parameters
-    config['distQminThr'] = kwargs.get("distQminThr", np.inf)
-
+    
     # ghostID_phaseSpaceSample specific parameters
     config['epsilon_gid'] = kwargs.get("epsilon_gid", 0.1)
     config['epsilon_unify'] = kwargs.get("epsilon_unify", 0.1)
     config['n_samples'] = kwargs.get("n_samples", 50)
+    config['seed'] = kwargs.get("seed", None)
+
+    # track_ghost_branch specific parameters
+    config['distQminThr'] = kwargs.get("distQminThr", np.inf)
+
+    # --- Define method-aware defaults ---------------------
+    DEFAULT_QMIN_GLOB_OPTIONS = {
+        "lhs": {
+            "n_samples": None,   # auto = max(200, 20*dim) inside optimizer
+            "k_seeds": None,     # auto = min(5, sqrt(dim))
+            "seed": None,        # reproducible if set
+        },
+        "differential_evolution": {
+            "maxiter": 1000,
+            "tol": 1e-2,
+            "seed": None,        # reproducible if set
+        },
+        "dual_annealing": {
+            "maxiter": 1000,
+        },
+        "basin_hopping": {
+            "niter": 100,
+            "stepsize": 0.5,
+        },
+    }
+
+    DEFAULT_QMIN_LOC_OPTIONS = {
+        "L-BFGS-B": {"maxiter": 500, "gtol": 1e-6},
+        "BFGS": {"maxiter": 500, "gtol": 1e-6},
+        "CG": {"maxiter": 500, "gtol": 1e-6},
+        "TNC": {"maxiter": 500, "gtol": 1e-6},
+        "SLSQP": {"maxiter": 500, "ftol": 1e-9},
+        None: {},
+    }
+
+    # --- Pick methods from kwargs with fallback -----------
+    config['qmin_glob_method'] = kwargs.get("qmin_glob_method", "lhs")
+    config['qmin_loc_method']  = kwargs.get("qmin_loc_method", "L-BFGS-B")
+
+    glob_method = config['qmin_glob_method']
+    loc_method  = config['qmin_loc_method']
+
+    # --- Merge user-specified options with defaults -------
+    user_glob_opts = kwargs.get("qmin_glob_options", {})
+    default_glob_opts = DEFAULT_QMIN_GLOB_OPTIONS.get(glob_method, {})
+    config['qmin_glob_options'] = {**default_glob_opts, **user_glob_opts}
+
+    user_loc_opts = kwargs.get("qmin_loc_options", {})
+    default_loc_opts = DEFAULT_QMIN_LOC_OPTIONS.get(loc_method, {})
+    config['qmin_loc_options'] = {**default_loc_opts, **user_loc_opts}
 
     return config
