@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Oct  4 14:51:22 2025
+Core functions of PyGhostID
 
-@author: dkoch
+@author: Daniel Koch, 2026
 """
 
 # Import packages
@@ -29,33 +29,113 @@ import os
 import sys
 from tqdm import tqdm
 
-#######################################
+# Functions
 
-def ghostID(model, params, dt, trajectory, epsilon_Qmin=0.05, **kwargs):
+def ghostID(model, params, dt, trajectory, epsilon_gid=0.05, **kwargs):
     
-    """ HYPERPARAMETERS OF THE ALGORITHM
-    
-    #####################################################################################################
-    epsilon_Qmin            - distance around Q-minima in which a trajectory segment is evaluated
-                              along which to evaluate eigenvalues  
-    
-    
-    OPTIONAL PARAMETERS (kwargs)
-    #####################################################################################################
-    epsilon_SN_ghosts       - distance below which ghosts are considered to be the same
-    peak_kwargs             - dict, additional arguments for scipy.signal.find_peaks
-    evLimit                 - maximum value below which the absolute averaged eigenvalues of a trajectory
-                              are considered to be close enough to 0. Set to >0 if you want to enable indirect
-                              identification of ghosts.
-    slopeLimits             - upper and lower limits for positive eigenvalue slopes. Will be ignored if evLimit = 0.
-    eigval_NN_sorting       - Nearest-neigbor reconstruction of eigenvalue timeseries. 
-                              Use if eigenvalue timeseries appear scattered/discontinues.
-    ev_outlier_removal      - Boolean, whether to apply outlier removal to eigenvalue timeseries before further processing.
-    ev_outlier_removal_ws   - Size of sliding window for outlier removal in eigenvalue timeseries. Will be ignored if ev_outlier_removal=False.
-    ev_outlier_removal_k    - Size of the filter for outlier removal in eigenvalue timeseries. 
-                              Values outsisde +/- k*interquartile ranges are removed. Will be ignored if ev_outlier_removal=False.
+    """ 
+    Identify ghost states along a simulated trajectory by detecting Q-minima and
+    evaluating the eigenvalue spectrum of the Jacobian along trajectory segments
+    in their vicinity.
 
-    Version 0.9
+    Parameters
+    ----------
+    model : callable
+        Python function describing the system dynamics.
+    params : list or array-like
+        Parameters passed as arguments to model.
+    dt : float
+        Step-size of the numerical integration used to simulate trajectory.
+    trajectory : array-like
+        A trajectory simulated by the system to be analysed for ghost states.
+    epsilon_gid : float, optional
+        Radius of the epsilon-sphere around Q-minima. Determines which trajectory
+        segments are used for eigenvalue evaluation: only points within this distance
+        of a Q-minimum are included. Values in the range 0.01--0.1 are reasonable
+        for many models (default is 0.05). The value should be large enough that
+        segments contain sufficient points for reliable eigenvalue estimation, but
+        small enough that eigenvalues remain representative of the local phase-space
+        topology around the candidate ghost. A practical tuning strategy is to start
+        with small values and increase until eigenvalue control plots look reasonably
+        smooth.
+    **kwargs
+        Optional keyword arguments:
+
+        delta_gid : float
+            Phase-space distance below which two ghosts identified by GhostID are
+            considered the same and assigned the same identifier. Default is 0.1.
+        peak_kwargs : dict
+            Additional keyword arguments passed to scipy.signal.find_peaks to
+            improve detection of Q-minima from peaks in the pQ time-series.
+        evLimit : float
+            Default is 0 (disabled). If set to a value greater than 0, enables the
+            indirect method of ghost identification: a trajectory segment is
+            considered to pass near a ghost if (1) the absolute value of the median
+            of eigenvalues along the segment is below evLimit, (2) the linear fit of
+            eigenvalues has R² >= 0.99, and (3) the slope of the fit lies within the
+            range given by slopeLimits.
+        slopeLimits : array-like of length 2
+            Upper and lower bounds for the eigenvalue slope used in the indirect
+            identification method. Ignored if evLimit = 0. Default is [0, inf].
+        batchModel : callable
+            Vectorized (batch) version of model able to handle batch inputs. Can be
+            provided to improve performance when ghostID is called repeatedly with the
+            same model, avoiding repeated calls to make_batch_model. If not provided,
+            ghostID constructs a batch model internally via make_batch_model.
+
+        Eigenvalue cleaning
+        -------------------
+        Because eigenvalue indexing along a trajectory segment is not guaranteed to
+        be consistent across consecutive time steps (i.e. lambda_1 at time t may be
+        lambda_2 at time t+1), two complementary correction methods are available:
+
+        ev_outlier_removal : bool
+            If True, removes eigenvalue outliers detected within a sliding window.
+            An eigenvalue is considered an outlier if it falls above q3 + k*(q3-q1)
+            or below q1 - k*(q3-q1), where q1 and q3 are the 25th and 75th
+            percentiles and k is set by ev_outlier_k. Default is False.
+        ev_outlier_removal_k : float
+            Controls the width of the non-outlier range (see ev_outlier_removal).
+            Default is 1.5.
+        ev_outlier_removal_ws : float
+            Size of the sliding window used for outlier detection. Default is 7.
+        eigval_NN_sorting : bool
+            If True, sorts eigenvalues across time for each index i using a
+            nearest-neighbour prediction. Useful when eigenvalue time-series appear 
+            scattered or discontinuous. Default is False.
+
+        Control outputs
+        ---------------
+        display_warnings : bool
+            Show or suppress warning messages from GhostID.
+        ctrlOutputs : dict
+            Controls diagnostic plots of the algorithm's two core quantities
+            (pQ-values and eigenvalues). Recognised keys:
+
+            ctrl_qplot (bool)       : plot pQ-values and detected Q-minima along
+                                      the trajectory.
+            qplot_xscale (str)      : x-axis scale for Q-plot, 'linear' (default)
+                                      or 'log'.
+            qplot_yscale (str)      : y-axis scale for Q-plot, 'linear' (default)
+                                      or 'log'.
+            ctrl_evplot (bool)      : plot eigenvalues along each trajectory segment
+                                      around identified Q-minima, including the
+                                      evaluation criteria listed in the plot heading.
+            evplot_xscale (str)     : x-axis scale for eigenvalue plot, 'linear'
+                                      (default) or 'log'.
+            evplot_yscale (str)     : y-axis scale for eigenvalue plot, 'linear'
+                                      (default) or 'log'.
+        return_ctrl_figs : bool
+            If True, returns control plot figures for manual customisation instead
+            of displaying them inline. Default is False.
+
+    Returns
+    -------
+    ghostSeq : list of dict
+        List of identified ghost states, each represented as a Python dictionary.
+    control_figures : optional
+        Control plot figures, returned only if return_ctrl_figs is True.
+
     """
 
     # Parse and validate kwargs
@@ -63,7 +143,7 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin=0.05, **kwargs):
     
     # Extract parameters from config
     display_warnings = config['display_warnings']
-    epsilon_SN_ghosts = config['epsilon_SN_ghosts']
+    delta_gid = config['delta_gid']
     peak_kwargs = config['peak_kwargs']
     if "width" not in peak_kwargs:  
         peak_kwargs["width"] = 5 * dt   # default if not supplied
@@ -102,7 +182,8 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin=0.05, **kwargs):
     ############# STEP 1 - identify non-oscillatory saddle-node ghosts #############################
     
     ### Identify minima in Q-values along trajectory using batch model output
-    Q_ts = 0.5 * np.sum(Xs**2, axis=1)
+    
+    Q_ts = 0.5 * np.sqrt(np.sum(Xs**2, axis=1)) 
     pQ = -np.log(Q_ts)
     
     idx_minima, pk_props = find_peaks(pQ, **peak_kwargs)  # positions of Q-minima
@@ -181,10 +262,9 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin=0.05, **kwargs):
             qmin_xyz = trajectory[i] # position of Q_minimum in phase space 
             
             # KD-tree neighborhood query
-            idcs_Ueps_qmin = kdtree.query_ball_point(qmin_xyz, epsilon_Qmin)
+            idcs_Ueps_qmin = kdtree.query_ball_point(qmin_xyz, epsilon_gid)
             idcs_Ueps_qmin = np.sort(np.asarray(idcs_Ueps_qmin, dtype=int))
             
-            # print(len(idcs_Ueps_qmin), np.min(idcs_Ueps_qmin), np.max(idcs_Ueps_qmin))
             if len(idcs_Ueps_qmin)<5:
                 print("ghostID error: insuffienct number of points in Ueps!")
                 if not(return_ctrl_figs):    
@@ -197,7 +277,7 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin=0.05, **kwargs):
             # Check if trajectory leaves the epsilon environment
             leaves_eps_qmin_i = False
             dists = np.linalg.norm(trajectory[i:] - qmin_xyz, axis=1)
-            if np.any(dists > epsilon_Qmin):
+            if np.any(dists > epsilon_gid):
                 leaves_eps_qmin_i = True
                 
             if leaves_eps_qmin_i:
@@ -255,11 +335,7 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin=0.05, **kwargs):
                     f"Eig.vals near Qmin at t={t_ghost:.2f}, ghost: {str(ghostCheck)[0]}, leaves Uɛ: {str(leaves_eps_qmin_i)[0]}, Qmami: {Q_mami:.1e} \n"
                     f"sign changes λi: " + "".join(np.where(ev_signChanges, 'T ', 'F '))+f", qualifying slopes: {qsl}, "
                     f"R²: {[f'{ri:.3f}' for ri in r2s]}", fontsize=9)
-                    # plt.suptitle(
-                    # f"Eigenvalues near Q-min at t={t_ghost:.2f}, ghost: {str(ghostCheck)[0]}, leaves Uɛ: {str(leaves_eps_qmin_i)[0]}, "
-                    # f"Qmami: {Q_mami:.1e}" if Q_mami >= 1000 else f"Qmami: {Q_mami:.1f}\n"
-                    # f"sign changes λi: " + "".join(np.where(ev_signChanges, 'T ', 'F ')) + f", qualifying slopes: {qsl}, "
-                    # f"R²: {[f'{ri:.3f}' for ri in r2s]}", fontsize=9)
+       
                     ax.set_xscale(evplot_xscale)
                     ax.set_yscale(evplot_yscale)
                     plt.tight_layout()
@@ -279,7 +355,7 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin=0.05, **kwargs):
                         # Calculate distances to all previously found ghosts
                         distances = np.asarray([np.linalg.norm(g - trajectory[i]) for g in ghostCoordinates])
                     
-                        if not any(d < epsilon_SN_ghosts for d in distances):  # current ghost has not been found previously
+                        if not any(d < delta_gid for d in distances):  # current ghost has not been found previously
                             ghostCoordinates.append(trajectory[i])
                             ghost = { 
                                 "id": "G" + str(len(ghostCoordinates)),  # assign ID to the new ghost
@@ -289,10 +365,11 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin=0.05, **kwargs):
                                 "dimension": gdim,
                                 "q-value": Q_ts[i],
                                 "crossing_eigenvalues": np.where(np.array(ev_signChanges)==True)[0],
-                                "qualifying_slopes":qualifyingSlopes
+                                "qualifying_slopes":qualifyingSlopes,
+                                "eigenvalues_qmin": np.asarray(eigVals[i, :])
                                 }
                         else:  # current ghost has already been found previously
-                            gidx = np.where(distances < epsilon_SN_ghosts)[0][0] + 1
+                            gidx = np.where(distances < delta_gid)[0][0] + 1
                             ghost = {
                                 "id": "G" + str(gidx),
                                 "time": t_ghost,
@@ -301,7 +378,8 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin=0.05, **kwargs):
                                 "dimension": gdim,
                                 "q-value": Q_ts[i],
                                 "crossing_eigenvalues": np.where(np.array(ev_signChanges)==True)[0],
-                                "qualifying_slopes":qualifyingSlopes
+                                "qualifying_slopes":qualifyingSlopes,
+                                "eigenvalues_qmin": np.asarray(eigVals[i, :])
                                 }
                         ghostSeq.append(ghost)
                     else:  # No ghost previously found yet
@@ -313,7 +391,8 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin=0.05, **kwargs):
                             "dimension": gdim,
                             "q-value": Q_ts[i],
                             "crossing_eigenvalues": np.where(np.array(ev_signChanges)==True)[0],
-                            "qualifying_slopes":qualifyingSlopes
+                            "qualifying_slopes":qualifyingSlopes,
+                            "eigenvalues_qmin": np.asarray(eigVals[i, :])
                             }
                         ghostSeq.append(ghost)
                         ghostCoordinates.append(trajectory[i])
@@ -347,17 +426,69 @@ def ghostID(model, params, dt, trajectory, epsilon_Qmin=0.05, **kwargs):
         return fullTransientSeq, ctrl_figures
 
 def ghostID_phaseSpaceSample(model, model_params, t_start, t_end, dt, state_ranges,
-                             method='RK45', rtol=1.e-3, atol=1.e-6, n_workers=None, **kwargs):
+                             n_samples=50, method='RK45', rtol=1.e-3, atol=1.e-6, n_workers=None, **kwargs):
     """
-    Adaptive parallel version:
-      - Uses threads when run in Spyder/Jupyter (no pickling issues)
-      - Uses processes when run as a standalone script for full CPU utilization
-    """
+    Identify ghost states across a region of phase space by simulating multiple
+    trajectories from initial conditions drawn by Latin-hypercube sampling and
+    evaluating each trajectory with ghostID.
 
-    # # ---- Parameters ----
-    # peak_kwargs = kwargs.get("peak_kwargs", {})
-    # ctrlOutputs = kwargs.get("ctrlOutputs", {})
-    # model_batch = kwargs.get("batchModel", make_batch_model(model, model_params))
+    Implements an adaptive parallel-processing routine: uses threads when run
+    inside Jupyter or Spyder (avoiding pickling issues) and processes when run
+    as a standalone script for full CPU utilisation.
+
+    Parameters
+    ----------
+    model : callable
+        Python function describing the system dynamics.
+    model_params : list or array-like
+        Parameters passed as arguments to model.
+    t_start : float
+        Start time of each simulated trajectory.
+    t_end : float
+        End time of each simulated trajectory.
+    dt : float
+        Step-size for numerical integration.
+    state_ranges : list of tuple
+        List of n tuples (one per dimension of the system), each specifying the
+        (lower, upper) boundaries of the phase space region to be sampled along
+        that coordinate. For example, for a 2D system:
+        [(x_min, x_max), (y_min, y_max)].
+    n_samples : int, optional
+        Number of trajectories to simulate and analyse for ghost states.
+    method : str, optional
+        Integration method passed to scipy.integrate.solve_ivp. Default is 'RK45'.
+    rtol : float, optional
+        Relative tolerance for the numerical integrator. Default is 1e-3.
+    atol : float, optional
+        Absolute tolerance for the numerical integrator. Default is 1e-6.
+    n_workers : int or None, optional
+        Number of CPU cores used for parallel processing. If None, the number
+        of workers is chosen automatically. Default is None.
+    **kwargs
+        All keyword arguments accepted by ghostID are also accepted here (see
+        ghostID documentation). Note that control plots are unlikely to render
+        correctly when parallel processing is enabled.
+
+        Additional kwargs specific to ghostID_phaseSpaceSample:
+
+        delta_unify : float
+            Distance in phase space above which two ghosts identified across
+            different trajectories in the phase space sample are considered
+            distinct and assigned different identifiers. Analogous to delta_gid
+            in ghostID, but applied globally across all trajectories rather than
+            within a single trajectory. Default is 0.1.
+        seed : int or None
+            Random seed for the Latin-hypercube sampler. Setting a specific value
+            ensures exact reproducibility of the phase space sample. Default is
+            None (non-reproducible random sample).
+
+    Returns
+    -------
+    results : list
+        List containing a ghostSeq (see ghostID documentation) for each
+        simulated trajectory, allowing ghost states to be retrieved and compared
+        across the sampled region of phase space.
+    """
     
     # Parse and validate kwargs
     config = parse_kwargs(**kwargs)
@@ -365,7 +496,7 @@ def ghostID_phaseSpaceSample(model, model_params, t_start, t_end, dt, state_rang
     display_warnings = config['display_warnings']
     
     # Extract parameters from config
-    epsilon_SN_ghosts = config['epsilon_SN_ghosts']
+    delta_gid = config['delta_gid']
     peak_kwargs = config['peak_kwargs']
     if "width" not in peak_kwargs:  
         peak_kwargs["width"] = 5 * dt   # default if not supplied
@@ -376,8 +507,7 @@ def ghostID_phaseSpaceSample(model, model_params, t_start, t_end, dt, state_rang
     evLimit = config['evLimit']
     slopeLimits = config['slopeLimits']
     epsilon_gid = config['epsilon_gid']
-    epsilon_unify = config['epsilon_unify']
-    n_samples = config['n_samples']
+    epsilon_unify = config['epsilon_unify'] # rename to delta_unify
     seed = config['seed']
 
     # Plotting control settings
@@ -408,7 +538,7 @@ def ghostID_phaseSpaceSample(model, model_params, t_start, t_end, dt, state_rang
                         t_eval=t_eval, args=(model_params,),
                         method=method, rtol=rtol, atol=atol)
         ghostSeq_ = ghostID(model, model_params, dt, sol.y.T,
-                           epsilon_gid, epsilon_SN_ghosts=epsilon_SN_ghosts,peak_kwargs=peak_kwargs,
+                           epsilon_gid, delta_gid=delta_gid,peak_kwargs=peak_kwargs,
                            batchModel=batchModel,return_ctrl_figs=return_ctrl_figs,ctrlOutputs=ctrlOutputs,
                            evLimit=evLimit,slopeLimits=slopeLimits,eigval_NN_sorting=eigval_NN_sorting,
                            ev_outlier_removal_ws=ev_outlier_removal_ws,ev_outlier_removal_k=ev_outlier_removal_k,
@@ -430,8 +560,13 @@ def ghostID_phaseSpaceSample(model, model_params, t_start, t_end, dt, state_rang
                 ghostSeqs.append(res)
 
     # ---- Unify results ----
-    ghostSeqs_unified = unify_IDs(ghostSeqs, epsilon_unify)
-    return ghostSeqs_unified
+    if len(ghostSeqs) > 0:
+        ghostSeqs_unified = unify_IDs(ghostSeqs, epsilon_unify, False)
+        return ghostSeqs_unified
+    else:
+        if display_warnings:
+            print("ghostID_phaseSpaceSample: No ghosts found in any trajectory.")
+        return []
 
 def make_batch_model(model, params):
     """
@@ -449,108 +584,85 @@ def make_batch_model(model, params):
     batched = jax.vmap(single)
     return batched
 
-# def find_local_Qminimum(F, x0, p, delta=0.5, method='L-BFGS-B',
-#                                n_global_iter=1000, tol_glob=0.01,tol_grad=1e-6, max_iter_local=500,
-#                                verbose=False):
-#     """
-#     Finds a local minimum of Q(x) = 0.5 * ||F||^2 near x0 in arbitrary dimensions.
-#     Performs radius-constrained global search using differential evolution,
-#     followed by SciPy local refinement.
+def find_local_Qminimum(model, x0, model_params, delta, *, global_method="lhs", local_method="L-BFGS-B",
+    global_options=None, local_options=None, verbose=False):
 
-#     Parameters
-#     ----------
-#     F : callable
-#         Vector field F(t, x, p)
-#     x0 : array_like
-#         Initial point in phase space (any dimension)
-#     p : array_like
-#         Model parameters
-#     delta : float
-#         Maximum distance from x0 for global search and final refinement
-#     method : str
-#         SciPy local optimization method ('BFGS', 'L-BFGS-B', 'CG')
-#     n_global_iter : int
-#         Number of iterations for differential evolution
-#     tol_grad : float
-#         Gradient tolerance for local refinement
-#     max_iter_local : int
-#         Maximum iterations for local refinement
-#     verbose : bool
-#         Print progress messages
-
-#     Returns
-#     -------
-#     x_min : np.ndarray
-#         Coordinates of the local minimum
-#     Q_min : float
-#         Q value at the local minimum
-#     res_local : OptimizeResult
-#         SciPy local minimization result
-#     """
-
-#     x0 = jnp.array(x0)
-#     dim = x0.shape[0]
-
-#     # Scalar field Q(x) = 0.5 * ||F||²
-#     def Q_func(x):
-#         z = jnp.array(x)
-#         return float(0.5 * jnp.sum(F(0.0, z, p)**2))
-
-#     # Gradient using JAX
-#     grad_Q = lambda x: np.array(jax.grad(lambda z: 0.5*jnp.sum(F(0.0, jnp.array(z), p)**2))(x))
-
-#     # -----------------------------
-#     # Global search using differential evolution
-#     # -----------------------------
-#     if verbose:
-#         print(f"Running global search with differential evolution (radius {delta}) ...")
-
-#     # Bounds per dimension for radius constraint
-#     bounds = [(float(x0[i]-delta), float(x0[i]+delta)) for i in range(dim)]
-
-#     result_global = differential_evolution(Q_func, bounds, maxiter=n_global_iter, tol=tol_glob, disp=verbose, polish=False)
-#     x_global_best = result_global.x
-#     Q_global_best = Q_func(x_global_best)
-
-#     if verbose:
-#         print(f"Global search best Q = {Q_global_best:.3e}")
-
-#     # -----------------------------
-#     # Optional: local refinement using SciPy minimize
-#     # -----------------------------
-#     if method not in ['None']:
-#         if verbose:
-#             print(f"Refining local minimum with {method} ...")
-    
-#         res_local = minimize(Q_func, x_global_best, jac=grad_Q, method=method,
-#                              tol=tol_grad, options={'maxiter': max_iter_local, 'disp': verbose},
-#                              bounds=bounds if method in ['L-BFGS-B', 'TNC', 'SLSQP'] else None)
-    
-#         x_min = res_local.x
-#         Q_min = Q_func(x_min)
-    
-#         if verbose:
-#             print(f"Refined local minimum Q = {Q_min:.3e} at x = {x_min}")
-
-#         return x_min, Q_min, res_local
-    
-#     return x_global_best, Q_global_best, result_global
-
-def find_local_Qminimum(
-    F,
-    x0,
-    p,
-    delta,
-    *,
-    global_method="lhs",
-    local_method="L-BFGS-B",
-    global_options=None,
-    local_options=None,
-    verbose=False,
-):
     """
-    Find a local minimum of Q(x) = 0.5 * ||F||^2 near x0.
+    Search for a Q-minimum within a region of radius delta around a given point
+    x0 in phase space, where Q(x) = 0.5 * ||F(x)||^2 and F is the vector field
+    defined by model. The search combines a global strategy (either sampling or
+    a global optimisation algorithm) with an optional subsequent local
+    optimisation step.
+
+    Parameters
+    ----------
+    model : callable
+        Python function describing the system dynamics.
+    x0 : array-like
+        Centre of the search region in phase space. The Q-minimum is sought
+        within a ball of radius delta around this point.
+    model_params : list or array-like
+        Parameters passed as arguments to model.
+    delta : float
+        Radius of the region around x0 in which to search for a Q-minimum.
+    global_method : str, optional
+        Strategy used for the global search stage. Options are:
+
+        'lhs' (default)
+            Draw a Latin-hypercube sample from the delta-ball around x0,
+            evaluate Q at each sample point, and pass the k_seeds points with
+            the lowest Q-values to the local optimiser as starting points.
+            Controlled via global_options (see below).
+        'differential_evolution'
+            Use scipy.optimize.differential_evolution to search for a
+            Q-minimum within the delta-ball.
+        'dual_annealing'
+            Use scipy.optimize.dual_annealing to search for a Q-minimum
+            within the delta-ball.
+        'basin_hopping'
+            Use scipy.optimize.basin_hopping to search for a Q-minimum
+            within the delta-ball.
+
+    local_method : str, optional
+        Local optimisation method applied after the global search stage.
+        Accepts any method available in scipy.optimize.minimize.
+        Default is 'L-BFGS-B'.
+    global_options : dict or None, optional
+        Options controlling the global search stage. For the scipy.optimize
+        global methods ('differential_evolution', 'dual_annealing',
+        'basin_hopping'), any keyword argument accepted by the corresponding
+        scipy.optimize function may be provided. For global_method='lhs',
+        the following keys are recognised:
+
+        n_samples : int or None
+            Size of the Latin-hypercube sample. If None, chosen automatically
+            as min(2000, max(200, 20 * dim)), where dim is the dimension of
+            the model.
+        k_seeds : int or None
+            Number of lowest-Q sample points passed to the local optimiser as
+            starting points. If None, chosen automatically as
+            min(5, max(2, int(sqrt(dim)))), where dim is the dimension of
+            the model.
+        seed : int or None
+            Random seed for the Latin-hypercube sampler. Setting a specific
+            value ensures exact reproducibility of the sample. Default is None.
+
+        Default for global_options is None (all sub-options use their defaults).
+    local_options : dict or None, optional
+        Options passed directly to scipy.optimize.minimize for the local
+        optimisation step. Accepts any keyword argument recognised by the
+        chosen local_method. Default is None.
+    verbose : bool, optional
+        If True, enables control outputs during the search. Default is False.
+
+    Returns
+    -------
+    result : OptimizeResult or similar
+        The identified Q-minimum within the delta-ball around x0.
     """
+
+    F = model
+    p = model_params
 
     x0 = np.asarray(x0, dtype=float)
     dim = x0.size
@@ -559,13 +671,12 @@ def find_local_Qminimum(
     global_options = {} if global_options is None else dict(global_options)
     local_options = {} if local_options is None else dict(local_options)
 
-
     # --------------------------------------------------
     # Define Q and grad Q
     # --------------------------------------------------
-    def Q_func(x):
+    def Q_func(x): 
         z = jnp.asarray(x)
-        return float(0.5 * jnp.sum(F(0.0, z, p) ** 2))
+        return float(0.5 * jnp.sum(F(0.0, z, p) ** 2)) #SHOULD THERE NOT BE A SQRT HERE???
 
     grad_Q = jax.grad(lambda z: 0.5 * jnp.sum(F(0.0, z, p) ** 2))
 
@@ -680,12 +791,57 @@ def find_local_Qminimum(
 
     return best_res.x, best_res.fun, best_res
 
+def qOnGrid(model, model_params, coords=None, n_points=50, ranges=None, overrides=None, indexing="ij", jit=False): 
 
-def qOnGrid(F, p, coords=None, dim=None, n_points=50, ranges=None, overrides=None, indexing="ij", jit=False):
+    """
+    Evaluate Q(x) = 0.5 * ||F(x)||^2 on a phase space grid, where F is the
+    vector field defined by the model.
+
+    Parameters
+    ----------
+    model : callable
+        Python function describing the system dynamics.
+    model_params : list or array-like
+        Parameters passed as arguments to model.
+    coords : list of 1D array-like or None, optional
+        Explicit phase space grid on which to evaluate Q-values, provided as a
+        list of 1D arrays (one per dimension). If None, the grid is constructed
+        automatically using n_points, ranges, and overrides (see below).
+        Default is None.
+    n_points : int or list of int, optional
+        Number of grid points along each dimension. A single integer applies
+        the same value to all dimensions; a list of integers sets each
+        dimension individually. Ignored if coords is provided. Default is 50.
+    ranges : tuple or list of tuple, optional
+        Bounds of the grid along each dimension, given as a
+        single (lower, upper) tuple applied to all dimensions, or a list of
+        such tuples to set each dimension individually. Ignored if coords is
+        provided. Default is (-2, 2).
+    overrides : dict or None, optional
+        Dictionary for overriding n_points and/or ranges for specific
+        individual axes without affecting the others. Keys are axis indices
+        (integers) and values are dictionaries with keys 'n' (int) and/or
+        'range' (tuple). For example, to set axis 1 to 100 points over
+        (-5.0, 5.0):  {1: {'n': 100, 'range': (-5.0, 5.0)}}. Ignored if
+        coords is provided. Default is None.
+    indexing : str, optional
+        Indexing convention passed to jax.numpy.meshgrid. Default is 'ij'
+        (matrix-style indexing, where the first index varies along rows).
+    jit : bool, optional
+        If True, enables JAX just-in-time (JIT) compilation to speed up
+        evaluation of Q on the grid. Default is False.
+
+    Returns
+    -------
+    Q_grid : array-like
+        Array of Q-values evaluated at each point of the phase space grid,
+        with shape determined by n_points and the number of dimensions.
+    """
+
     if coords is None:
-        if dim is None:
-            test = F(0.0, jnp.zeros(1), p)
-            dim = test.shape[0]
+
+        test = model(0.0, jnp.zeros(1), model_params)
+        dim = test.shape[0]
 
         if ranges is None:
             ranges = [(-2.0, 2.0)]*dim
@@ -711,45 +867,87 @@ def qOnGrid(F, p, coords=None, dim=None, n_points=50, ranges=None, overrides=Non
 
     def core(grid_points):
         flat_pts = grid_points.reshape(-1, grid_points.shape[-1])
-        F_vmapped = jax.vmap(lambda pt: F(0.0, pt, p))
+        F_vmapped = jax.vmap(lambda pt: model(0.0, pt, model_params))
         values = F_vmapped(flat_pts)
         Q_flat = 0.5*jnp.sum(values**2, axis=-1)
         return Q_flat.reshape(grid_points.shape[:-1])
 
     core = jax.jit(core) if jit else core
     return core(grid_points), grid_points
-###############
 
 def track_ghost_branch(ghost, model, model_params, par_nr, par_steps, dpar, t_end, dt, delta=0.5, icStep=0.1, mode="first",
                              epsilon_gid=0.1,solve_ivp_method='RK45', rtol=1.e-3, atol=1.e-6,**kwargs):
-    
-    # # ---- Parameters ----
-    # evLimit = kwargs.get("evLimit", None)
-    # slopeLimits = kwargs.get("slopeLimits", None)
-    # peak_kwargs = kwargs.get("peak_kwargs", {})
-    # ctrlOutputs = kwargs.get("ctrlOutputs", {})
-    # model_batch = kwargs.get("batchModel", make_batch_model(model, model_params))
+    """
+    Track a ghost state across a parameter sweep by iteratively updating the parameter
+    and re-identifying the ghost at each step.
 
-    # if "ctrlOutputs" in kwargs:
-    #     if "return_ctrl_figs" in kwargs["ctrlOutputs"]:
-    #         return_ctrl_figs = kwargs["ctrlOutputs"]["return_ctrl_figs"]
-    #     else:
-    #         return_ctrl_figs = False
-    # else:
-    #     return_ctrl_figs = False
-    
-    # if "distQminThr" in kwargs:
-    #     distQminThr = kwargs["distQminThr"]
-    # else:
-    #     distQminThr = np.inf 
+    Parameters
+    ----------
+    ghost : dict
+        Ghost to be tracked, identified either by 'ghostID' or 'ghostID_phaseSpaceSample'.
+    model : callable
+        Python function describing the system dynamics.
+    model_params : list or array-like
+        Parameters for the model function.
+    par_nr : int
+        Index of the parameter in model_params to be varied during the sweep.
+    par_steps : int
+        Number of times the parameter is updated during the sweep.
+    dpar : float
+        Size of the parameter increment per iteration. Use a positive value to increase
+        the parameter and a negative value to decrease it.
+    t_end : float
+        Length of the trajectory integrated at each iteration step.
+    dt : float
+        Step-size used for numerical integration.
+    delta : float, optional
+        Size of the region around the current ghost position (xg) in which to search
+        for xQmin (the point of minimum speed). Default is 0.5.
+    icStep : float, optional
+        Distance from xQmin at which to initialize a trajectory that will be analyzed
+        by GhostID. Default is 0.1.
+    mode : {'first', 'closest'}, optional
+        Strategy for selecting among multiple ghosts potentially identified along a
+        trajectory.
+        - 'first'   : take the first ghost found (default).
+        - 'closest' : take the ghost closest in phase space to the current ghost
+                      position (xg).
+    epsilon_gid : float, optional
+        Threshold parameter for GhostID (see section 1.1 of the paper). Default is 0.1.
+    solve_ivp_method : str, optional
+        Integration method passed to scipy.integrate.solve_ivp (e.g. 'RK45').
+        Default is 'RK45'.
+    rtol : float, optional
+        Relative tolerance for the numerical integrator. Default is 1e-3.
+    atol : float, optional
+        Absolute tolerance for the numerical integrator. Default is 1e-6.
+    **kwargs
+        Optional keyword arguments:
+        - distQminThr (float): Maximum allowable distance between the identified ghost
+          and xQmin. Any ghost candidate whose distance from xQmin exceeds this
+          threshold is rejected. Default is infinity (no constraint).
 
+    Returns
+    -------
+    ghostPositions : array-like
+        Positions in phase space of the ghosts found at each parameter step.
+    parSeq : array-like
+        Sequence of parameter values at which each ghost was identified.
+    ghostSeq_p : list
+        Full list of ghost objects found at each parameter value, enabling extraction
+        of additional ghost properties beyond phase-space position.
+    control_plots : optional
+        Control plots for GhostID, returned only if the corresponding option is enabled.
+    """
+
+    
     # Parse and validate kwargs
     config = parse_kwargs(**kwargs)
     
     display_warnings = config['display_warnings']
 
     # Extract parameters from config
-    epsilon_SN_ghosts = config['epsilon_SN_ghosts']
+    delta_gid = config['delta_gid']
     peak_kwargs = config['peak_kwargs']
     if "width" not in peak_kwargs:  
         peak_kwargs["width"] = 5 * dt   # default if not supplied
@@ -791,7 +989,6 @@ def track_ghost_branch(ghost, model, model_params, par_nr, par_steps, dpar, t_en
             
             x0 = ghost_["position"]
             
-            # qmin = find_local_Qminimum(model, x0, model_params_, delta, tol_glob=qmin_tol,method=qmin_method)[0]
             qmin = find_local_Qminimum(model,x0,model_params_,delta,
                                        global_method=qmin_glob_method,
                                        local_method=qmin_loc_method,
@@ -827,14 +1024,11 @@ def track_ghost_branch(ghost, model, model_params, par_nr, par_steps, dpar, t_en
             sol = solve_ivp(model, (0,t_end), ic_pick, t_eval=np.asarray(np.arange(0, t_end, dt)), rtol=rtol, atol=atol, args=([model_params_]), method=solve_ivp_method)
             
             gid_output = ghostID(model, model_params, dt, sol.y.T,
-                           epsilon_gid, epsilon_SN_ghosts=epsilon_SN_ghosts,peak_kwargs=peak_kwargs,
+                           epsilon_gid, delta_gid=delta_gid,peak_kwargs=peak_kwargs,
                            batchModel=batchModel,return_ctrl_figs=return_ctrl_figs,ctrlOutputs=ctrlOutputs,
                            evLimit=evLimit,slopeLimits=slopeLimits,eigval_NN_sorting=eigval_NN_sorting,
                            ev_outlier_removal_ws=ev_outlier_removal_ws,ev_outlier_removal_k=ev_outlier_removal_k,
                            display_warnings=display_warnings)
-            # ghostID(model, model_params_, dt, sol.y.T,
-            #                 epsilon_gid, evLimit=evLimit, slopeLimits=slopeLimits, peak_kwargs=peak_kwargs,
-            #                 batchModel=model_batch,ctrlOutputs=ctrlOutputs)
             
             if return_ctrl_figs == False:
                 ghostSeq = gid_output
@@ -879,26 +1073,20 @@ def track_ghost_branch(ghost, model, model_params, par_nr, par_steps, dpar, t_en
     else:
         return ghostPositions, np.asarray(parSeq), ghostSeq_p, ctrl_figures_p
 
-
-
-###############
-
-def ghost_connections(gSeq):  
+def ghost_connections(gSeqs):  
     """
-    ##############################################################################################
     Takes list of ghost sequences and turns it into an adjacency matrix.
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    Input: 
+
+    Input:
         - gSeq: list of ghost sequences that have been generated by ghostID
     Output:
         - adjM: adjecency matrix representing connections between identified ghosts in phase space
         - labels: labels of matrix rows/columns
-    ##############################################################################################
     """
     
     labels = []
     
-    for s in gSeq:
+    for s in gSeqs:
         for i in s:
             if i["id"][:1]=="G" and not i["id"] in labels:
                 labels.append(i["id"])
@@ -906,7 +1094,7 @@ def ghost_connections(gSeq):
     ng = len(labels)
     adjM = np.zeros((ng,ng))
     
-    seqIDs = [[g["id"] for g in s] for s in gSeq]
+    seqIDs = [[g["id"] for g in s] for s in gSeqs]
     
     for s in seqIDs:
         for i in range(len(s)-1):
@@ -917,13 +1105,9 @@ def ghost_connections(gSeq):
             
     return adjM, labels
 
-
-
 def unique_ghosts(gSeq):  
     """
-    ##############################################################################################
     Takes list of unified ghost sequences and returns a list of all unique ghosts
-    ##############################################################################################
     """
     
     ghostIDs = []
@@ -936,64 +1120,10 @@ def unique_ghosts(gSeq):
                 ghostsUnique.append(i)
     
     return ghostsUnique
-                
-    
-    
-            
-#############
-
-# def unify_IDs(Seqs, epsilon_SN_ghosts=0.1):
-#     """
-#     Unify ids across multiple sequences of transient ghost state objects found in timecourse simulations.
-
-#     Arguments:
-#         Seqs: list of lists of dicts, each dict with keys 'position' (np.ndarray) and 'id' (str: 'G{i}').
-#         epsilon_SN_gs: distance threshold for equating SN ghosts.
-
-#     Returns:
-#         The same list Seqs with updated, unified 'id' strings.
-#     """
-#     # Initialize known objects from first sequence
-#     first = Seqs[0]
-#     known_G = {}  # id_str -> position (representative)
-
-#     # Track maximum numeric index seen
-#     max_g = 0
-
-#     for obj in first:
-#         pid = obj['id']
-#         if pid.startswith('G'):
-#             idx = int(pid[1:])
-#             known_G[pid] = obj['position'].copy()
-#             max_g = max(max_g, idx)
-    
-#     # Process subsequent sequences
-#     for seq in Seqs[1:]:
-#         for obj in seq:
-#             pos = obj['position']
-#             orig = obj['id']
-#             if orig.startswith('G'):
-#                 # check against known_G
-#                 matched = False
-#                 for pid, refpos in known_G.items():
-#                     if np.linalg.norm(pos - refpos) < epsilon_SN_ghosts:
-#                         obj['id'] = pid
-#                         matched = True
-#                         break
-#                 if not matched:
-#                     max_g += 1
-#                     new_id = f'G{max_g}'
-#                     obj['id'] = new_id
-#                     known_G[new_id] = pos.copy()   
-#             else:
-#                 # Unknown id format, leave unchanged or raise error
-#                 raise ValueError(f"Unrecognized id '{orig}'")
-#     return Seqs
-
-def unify_IDs(Seqs, epsilon_SN_ghosts=0.1, update=True):
+                    
+def unify_IDs(seqs, delta_unify=0.1, update=True):
     """
-    Unify ids across multiple sequences of transient ghost state objects
-    found in timecourse simulations.
+    Unify ids across multiple sequences of transient ghost state objects found in timecourse simulations.
 
     Parameters
     ----------
@@ -1005,7 +1135,7 @@ def unify_IDs(Seqs, epsilon_SN_ghosts=0.1, update=True):
             - 'q-value'   : float, scalar quality / stability measure
             - 'dimension' : int, dimension associated with the ghost
 
-    epsilon_SN_ghosts : float, optional
+    delta_gid : float, optional
         Distance threshold below which two ghost states are considered
         identical (i.e. the same ghost across runs).
 
@@ -1025,6 +1155,7 @@ def unify_IDs(Seqs, epsilon_SN_ghosts=0.1, update=True):
     # STEP 1: Initialize reference ghosts from the first sequence
     # ------------------------------------------------------------------
 
+    Seqs = seqs.copy()
     first = Seqs[0]
 
     # Dictionary mapping ghost ID -> representative position
@@ -1058,7 +1189,7 @@ def unify_IDs(Seqs, epsilon_SN_ghosts=0.1, update=True):
             matched = False
             for pid, refpos in known_G.items():
                 # Compare Euclidean distance in phase space
-                if np.linalg.norm(pos - refpos) < epsilon_SN_ghosts:
+                if np.linalg.norm(pos - refpos) < delta_unify:
                     obj['id'] = pid         # reuse existing ID
                     matched = True
                     break
@@ -1111,59 +1242,7 @@ def unify_IDs(Seqs, epsilon_SN_ghosts=0.1, update=True):
 
     return Seqs
 
-
-######################################
-
-# def draw_network(adj_matrix, nodeColMap, nlbls):
-
-#     # Note: using this function requies pygraphviz to be installed
-#     # https://pygraphviz.github.io/documentation/stable/install.html
-
-#     nw_dim = adj_matrix.shape[0]
-#     G = nx.from_numpy_array(adj_matrix.transpose(), create_using=nx.DiGraph)
-
-#     # Define edges
-#     inhEdges, actEdges = [], []
-#     for i in range(nw_dim):
-#         for ii in range(nw_dim):
-#             if adj_matrix[i, ii] == 1:
-#                 G.add_edge(i, ii, weight=1)
-#                 actEdges.append((i, ii))
-#             elif adj_matrix[i, ii] == -1:
-#                 G.add_edge(i, ii, weight=-1)
-#                 inhEdges.append((i, ii))
-
-#     # Apply Graphviz 'dot' layout
-#     graphviz_args = "-Nwidth=350 -Nheight=350 -Nfixedsize=true -Goverlap=scale -Gnodesep=5000 -Granksep=200 -Nshape=oval -Nfontsize=14 -Econstraint=true"
-#     pos = graphviz_layout(G, prog='fdp',args=graphviz_args)
-
-#     # Draw nodes
-#     node_opts = {"node_size": 1800, "edgecolors": "lightgrey"}
-#     nx.draw_networkx_nodes(G, pos, node_color=nodeColMap, **node_opts, alpha=0.90)
-    
-#     # Draw custom edges using the modified arrow approach.
-#     # Adjust head_length, head_width, etc. as desired.
-#     draw_custom_edges(G, pos, actEdges, color="k", head_length=8, head_width=4, width=1.1, trim_fraction=0.2)
-#     draw_custom_edges(G, pos, inhEdges, color="red", head_length=8, head_width=4, width=1.1, trim_fraction=0.2)
-    
-#     # Draw labels
-#     labels = {i: nlbls[i] for i in range(nw_dim)}
-#     nx.draw_networkx_labels(G, pos, labels, font_size=16.5, font_weight="bold")
-
-#     plt.axis("off")
-
-def draw_network(
-    adj_matrix,
-    nodeColMap,
-    nlbls,
-    layout="fdp",
-    graphviz_args=None,
-    layout_kwargs=None,
-    rankdir="TB",
-    node_size=1800,           
-    label_font_size=16.5,     
-    font="Arial"
-):
+def draw_network(adj_matrix, nodeCols, nlbls, layout="fdp", graphviz_args=None, layout_kwargs=None, rankdir="TB", node_size=1800, label_font_size=16.5,  font="Arial"):
     """
     layout options
     --------------
@@ -1224,7 +1303,7 @@ def draw_network(
         "edgecolors": "white",
     }
     nx.draw_networkx_nodes(
-        G, pos, node_color=nodeColMap, **node_opts, alpha=0.90
+        G, pos, node_color=nodeCols, **node_opts, alpha=0.90
     )
 
     # --- Draw edges --------------------------------------------------------

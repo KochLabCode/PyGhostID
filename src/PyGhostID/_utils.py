@@ -290,7 +290,7 @@ def parse_kwargs(**kwargs):
     
     # ghostID parameters
     
-    config['epsilon_SN_ghosts'] = kwargs.get("epsilon_SN_ghosts", 0.1)
+    config['delta_gid'] = kwargs.get("delta_gid", 0.1)
     
     # Peak detection parameters
     config['peak_kwargs'] = kwargs.get("peak_kwargs", {})
@@ -342,7 +342,7 @@ def parse_kwargs(**kwargs):
     config['ev_outlier_removal_ws'] = kwargs.get("ev_outlier_removal_ws", 7)
     config['ev_outlier_removal_k'] = kwargs.get("ev_outlier_removal_k", 1.5)
     config['evLimit'] = kwargs.get("evLimit", 0)
-    
+  
     # Slope limits with validation
     sl = kwargs.get("slopeLimits", None)
     if sl is not None:
@@ -361,7 +361,7 @@ def parse_kwargs(**kwargs):
     # ghostID_phaseSpaceSample specific parameters
     config['epsilon_gid'] = kwargs.get("epsilon_gid", 0.1)
     config['epsilon_unify'] = kwargs.get("epsilon_unify", 0.1)
-    config['n_samples'] = kwargs.get("n_samples", 50)
+    # config['n_samples'] = kwargs.get("n_samples", 50)
     config['seed'] = kwargs.get("seed", None)
 
     # track_ghost_branch specific parameters

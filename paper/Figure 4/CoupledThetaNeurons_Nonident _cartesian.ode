@@ -1,0 +1,34 @@
+# Two coupled theta neurons in Cartesian coordinates
+# From Augustsson & Martens (2024), Chaos 34
+# Phase shift pS removed
+
+par n1=1,n2=-1,K=0.1
+
+# Auxiliary expressions
+F1 = 1 - x1 + (1 + x1)*(n1 + K*(1 - x2))
+F2 = 1 - x2 + (1 + x2)*(n2 + K*(1 - x1))
+
+# Cartesian ODEs
+x1' = -y1*F1
+y1' =  x1*F1
+
+x2' = -y2*F2
+y2' =  x2*F2
+
+# Initial conditions (theta1=0, theta2=0)
+x1(0)=1
+y1(0)=0
+x2(0)=1
+y2(0)=0
+
+@ nplot=1
+@ nmesh=400
+@ total=300,xp=x1,yp=y1,xlo=-1.2,xhi=1.2,ylo=-1.2,yhi=1.2
+@ meth=rungekutta, dt=.05, atol=1e-5
+
+# AUTO parameters
+@ autovar=x1,autoxmin=-1.2,autoymin=-1.2,autoxmax=1.2,autoymax=1.2
+@ ntst=400,nmax=3000,npr=500,ds=0.0001,dsmin=0.00001,dsmax=0.05
+@ ncol=4,epsl=1e-4,parmin=-1,parmax=1,normmin=0,normmax=1000
+@ epsu=1e-4,epss=0.0001
+done

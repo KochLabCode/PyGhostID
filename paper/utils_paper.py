@@ -285,3 +285,26 @@ def mutualInformation(x,y,nbins,rank=False):
         print("Error: x and y do not have the same size.")
         return None, None
     
+def spike_rate(binary_series, dt, window_size, step_size):
+    """
+    Compute spike rate over time using a moving window.
+
+    Parameters:
+        binary_series : 1D numpy array of 0s and 1s
+        dt            : time step between samples (in seconds)
+        window_size   : size of window in samples
+        step_size     : step size in samples
+
+    Returns:
+        times         : array of center times for each window
+        rates         : array of spike rates in Hz for each window
+    """
+    rates = []
+    times = []
+    for start in range(0, len(binary_series) - window_size + 1, step_size):
+        end = start + window_size
+        window = binary_series[start:end]
+        rate = np.sum(window) / (window_size * dt)
+        rates.append(rate)
+        times.append((start + end) / 2 * dt)
+    return np.array(times), np.array(rates)

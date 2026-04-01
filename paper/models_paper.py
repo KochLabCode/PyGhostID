@@ -17,6 +17,26 @@ def snb_2dnf(t,z,para): # parameter-coupled saddle-node bifurcation normal forms
          
     return jnp.stack([dx, dy])
 
+
+def SN_jk(t, z, para):
+    mu, n, j, k = para
+    
+    z = jnp.asarray(z)
+    zdot = jnp.zeros(n)
+
+    # First block: saddle-node directions
+    zdot = zdot.at[:j].set(z[:j]**2 + mu)
+
+    # Second block: unstable linear directions
+    zdot = zdot.at[j:j+k].set(z[j:j+k])
+
+    # Third block: stable linear directions
+    zdot = zdot.at[j+k:].set(-z[j+k:])
+
+    return zdot
+
+
+
 def bieg_etal(t,z,para): # from  https://doi.org/10.1007/s10021-023-00892-8
 
     a,Nt,N0,g,y,r,c,m = para
@@ -142,6 +162,27 @@ def MMenten_slowFast(t, z, para): # from ...
     return jnp.array([ds,dc])
     
 
+
+def egfr_phosphatase_model(t, z, para):
+    
+    LR_a, alpha1, alpha2, alpha3, k_R, gamma_DNF, k1, k2_1, beta_DNF = para
+
+    R_a     = z[0]
+    P_DNF_a = z[1]
+
+    # Derived (conserved) quantities
+    R_i     = 1 - R_a
+    P_DNF_i = 1 - P_DNF_a
+
+    # Equations
+    R_a_dot     = k_R * (R_i * (alpha1*R_i + alpha2*R_a + alpha3*LR_a) 
+                         - gamma_DNF * P_DNF_a * R_a)
+
+    P_DNF_a_dot = k1 * (P_DNF_i - k2_1*P_DNF_a 
+                        - beta_DNF * P_DNF_a * (R_a + LR_a))
+
+    return jnp.array([R_a_dot, P_DNF_a_dot])
+
 # def vanDerPol(t,z,para):
 #     eps=para
 #     dx=(1/eps)*(z[1]-(1/3)*z[0]**3+z[0])
@@ -152,6 +193,12 @@ def coupledThetaNeurons(t, z, para): # from Augustsson & Martens 2024, doi: 10.1
     n,K,pS = para
     theta1_dot = 1-jnp.cos(z[0]+pS)+(1+jnp.cos(z[0]+pS))*(n+K*(1-jnp.cos(z[1]+pS))) 
     theta2_dot = 1-jnp.cos(z[1]+pS)+(1+jnp.cos(z[1]+pS))*(n+K*(1-jnp.cos(z[0]+pS))) 
+    return jnp.array([theta1_dot,theta2_dot])
+
+def coupledThetaNeurons_nonident(t, z, para): # from Augustsson & Martens 2024, doi: 10.1063/5.0226338
+    n1,n2,K,pS = para
+    theta1_dot = 1-jnp.cos(z[0]+pS)+(1+jnp.cos(z[0]+pS))*(n1+K*(1-jnp.cos(z[1]+pS))) 
+    theta2_dot = 1-jnp.cos(z[1]+pS)+(1+jnp.cos(z[1]+pS))*(n2+K*(1-jnp.cos(z[0]+pS))) 
     return jnp.array([theta1_dot,theta2_dot])
 
 def fromArray(t,p):
@@ -332,3 +379,19 @@ def GRN_net(t, x, para):
     xdot = (f_self + exc) * inh - x
 
     return jnp.asarray(xdot)
+
+
+def strogatz_model(t, x, para):
+        
+    gamma, K, E = para
+    
+    dx1 = E + 0.5*(jnp.sin((x[0]+x[1])) + jnp.sin(x[1]-x[0]))
+    dx2 = (1/(1+2*gamma))*(-2*K*x[1] + 0.5*(jnp.sin((x[0]+x[1]))+jnp.sin(x[0]-x[1])))
+    
+    return jnp.array([dx1, dx2])
+
+def vanDerPol(t,z,para):
+    eps=para
+    dx=(1/eps)*(z[1]-(1/3)*z[0]**3+z[0])
+    dy = -z[0]
+    return jnp.array([dx, dy])
