@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "PyGhostID"
-version = "0.1.3"
+version = "1.0.0"
 description = "A Python package for identifying ghosts in the vicinity of saddle-node bifurcations and composite ghost structures in dynamical systems."
 authors = [
   { name="Daniel Koch", email="daniel.koch@umanitoba.ca" }
@@ -25,4 +25,3 @@ dependencies = [
 
 [project.urls]
 "Homepage" = "https://github.com/KochLabCode/PyGhostID"
-"Bug Tracker" = "https://github.com/KochLabCode/PyGhostID/issues"
