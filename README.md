@@ -1,7 +1,11 @@
-<<<<<<< HEAD
 # Overview
 PyGhostID is a Python package for identifying generalized saddle-node ghosts in the vicinity of saddle-node bifurcations and their composite ghost structures such as ghost channels and ghost cycles in dynamical systems.
 PyGhostID's main function is the implementation of GhostID, a trajectory-based algorithm to identify saddle-node ghosts in dynamical systems.
+
+<p align="center">
+  <img src="https://github.com/KochLabCode/PyGhostID/blob/main/PyGhostID.png" alt="a: GhostID algorithm. b: data recorded about identified ghosts. c: Features of PyGhostID.">
+</p>
+<p align="center"><em>a: GhostID algorithm. b: data recorded about identified ghosts. c: Features of PyGhostID.</em></p>
 
 # Quick Start
 
