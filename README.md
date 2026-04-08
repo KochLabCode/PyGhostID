@@ -3,7 +3,7 @@ PyGhostID is a Python package for identifying generalized saddle-node ghosts in 
 PyGhostID's main function is the implementation of GhostID, a trajectory-based algorithm to identify saddle-node ghosts in dynamical systems.
 
 <p align="center">
-  <img src="https://github.com/KochLabCode/PyGhostID/blob/main/PyGhostID.png" alt="a: GhostID algorithm. b: data recorded about identified ghosts. c: Features of PyGhostID.">
+  <img src="https://raw.githubusercontent.com/KochLabCode/PyGhostID/refs/heads/main/PyGhostID.png" alt="PyGhostID_scheme">
 </p>
 <p align="center"><em>a: GhostID algorithm. b: data recorded about identified ghosts. c: Features of PyGhostID.</em></p>
 
@@ -18,7 +18,7 @@ import pyghostid as gid
 result = ghostID(model, params, dt, trajectory, epsilon_gid = 0.05, delta_gid=0.05, **kwargs)
 ```
 
-where `model`is the Python function describing the system dynamics, `parameters`are the model parameters to be given as argument to `model`, `dt`is the stepsize and `trajectory`is a trajectory simulated by the system. It returns `ghostSeq`, a Python list of identified ghost states (Python dictionary) and, if `return$\_$ctrl$\_$figs = True`, the figures for the control plots requested by the user. The hyper-parameters of the algorithm are as follows:
+where `model`is the Python function describing the system dynamics, `parameters`are the model parameters to be given as argument to `model`, `dt`is the stepsize and `trajectory`is a trajectory simulated by the system. It returns `ghostSeq`, a Python list of identified ghost states (Python dictionary) and, if `return_ctrl_figs = True`, the figures for the control plots requested by the user. The hyper-parameters of the algorithm are as follows:
 
 - `epsilon_gid`(float): Radius of the ε-sphere around Q-minima determining the trajectory segments along which eigenvalues are evaluated. For many models considered here we found values in the range of 0.01 to 0.1 a reasonable choice, hence the default value is set to 0.05. However, suitable values strongly depend on the model and the typical ranges of the phase space variables. Generally, the value should be chosen big enough such that trajectory segments consist of enough points to allow a reliable identification of the eigenvalue spectrum along the segment, but small enough so that the eigenvalues are still representative of the local phase-space topology around potential ghosts. A good strategy for choosing `epsilon_Qmin` is to start with small values and increase it until eigenvalue control plots look reasonably smooth.
 - `delta_gid` (kwarg, float): Distance in phase space between two ghosts identified by GhostID above which they are considered distinct and given different identifiers. Default value is 0.1.
