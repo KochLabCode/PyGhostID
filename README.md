@@ -6,13 +6,9 @@ PyGhostID is a Python package for identifying generalized saddle-node ghosts in 
 
 The folder "paper" of this repository contains the code and data to reproduce the results and figures from the study:
 
-Daniel Koch, Akhilesh Nandan (2026).  
-**_Generalized saddle-node ghosts and their composite structures in dynamical systems._**  
-_arxiv_:XXXXXXX.
+[Daniel Koch, Akhilesh Nandan (2026). Generalized saddle-node ghosts and their composite structures in dynamical systems. arxiv: 2604.05194.](http://arxiv.org/abs/2604.05194)
 
-([Link to publication](google.com))
-
-If you use this repository in your research, please cite the original paper.
+If you use this repository in your research, please cite our paper.
 
 ## Getting Started
 
