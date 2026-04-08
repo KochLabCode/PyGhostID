@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Overview
 PyGhostID is a Python package for identifying generalized saddle-node ghosts in the vicinity of saddle-node bifurcations and their composite ghost structures such as ghost channels and ghost cycles in dynamical systems.
 PyGhostID's main function is the implementation of GhostID, a trajectory-based algorithm to identify saddle-node ghosts in dynamical systems.
@@ -40,8 +41,32 @@ Eigenvalues are calculated by `ghostID` using the `jax.numpy.linalg.eigvals` fun
   - `evplot_yscale` (string): set scale of y-axis to `"linear"` (default) or `"log"`.
 - `return_ctrl_figs` (kwarg, boolean): Returns control plots for manual customization of plot settings if set to `True`. Default value is `False`.
 
-For a full documentation of PyGhostID's capabilities including its other functions (tracking ghosts versus parameter changes, identifying ghost channels and ghost cycles), please refer to:
+For a full documentation of PyGhostID's capabilities including its other functions (tracking ghosts versus parameter changes, identifying ghost channels and ghost cycles), please refer to the paper below.
+
+## Reproducing figures from the paper
+
+The folder "paper" of this repository contains the code and data to reproduce the results and figures from the study:
 
 [Daniel Koch, Akhilesh Nandan (2026). Generalized saddle-node ghosts and their composite structures in dynamical systems. arxiv: 2604.05194.](http://arxiv.org/abs/2604.05194)
 
-If you use PyGhostID in your research, please cite our paper.
+If you use PyGhostID or its repository in your research, please cite our paper.
+
+#### Dependencies
+
+To recreate the figures and simulations from the study, you’ll need:
+
+- Python 3.x
+- PyGhostID (available at https://pypi.org/project/PyGhostID/)
+- Other required Python packages (installable via the environment `PyGhostID.yaml`)
+
+#### Running Code
+
+- Main Figures:
+Run any of the `FigureX.ipynb` scripts to generate the main figures from the paper.
+
+Supplementary Figures & Videos:
+- Use `Supp Figure X.py` to reproduce additional analyses and visuals.
+
+## Contact
+
+For questions or additional information, please contact Daniel Koch: daniel.koch@umanitoba.ca
