@@ -69,7 +69,7 @@ To recreate the figures and simulations from the study, you’ll need:
 Run any of the `FigureX.ipynb` scripts to generate the main figures from the paper.
 
 Supplementary Figures & Videos:
-- Use `Supp Figure X.py` to reproduce additional analyses and visuals.
+- Use `Supp Figure X.ipynb` to reproduce additional analyses and visuals.
 
 ## Contact
 
