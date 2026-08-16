@@ -392,7 +392,7 @@ While we're thinking about a complementary mode to identify ghosts without traje
 
 ## Tutorial 2 - Identifying ghost structures: channels, cycles, networks
 
-In Koch et al. 2024 we discovered that multiple ghosts can be connected in phase space to form what we termed *ghost channels* and *ghost cycles* akin to heteroclinic connections between saddles forming channels and cycles. More recently, in Koch & Nandan 2026 we found this can be taken even further to complex *ghost networks* in phase space.
+In [Koch et al. 2024](https://doi.org/10.1103/PhysRevLett.133.047202) we discovered that multiple ghosts can be connected in phase space to form what we termed *ghost channels* and *ghost cycles* akin to heteroclinic connections between saddles forming channels and cycles. More recently, in Koch & Nandan 2026 we found this can be taken even further to complex *ghost networks* in phase space.
 
 PyGhostID features a simple function to reconstruct these ghost structures from trajectories: `ghost_connections`. All you need is a list of one or more `ghostSeq`s and the function will return an adjacency matrix that represents how the ghosts identified in the system are connected to each other. In addition, you can use the `draw_network` function (which makes use of [NetworkX](https://networkx.org/)) to conveniently visualize the identified structures.
 

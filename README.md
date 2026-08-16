@@ -21,7 +21,7 @@ where `model`is the Python function describing the system dynamics, `parameters`
 
 ## Documentation
 
-Please refer to (...)
+Please refer to our [readthedocs](https://pyghostid.readthedocs.io/en/latest/) page for information about PyGhostID's functions, tutorials and more. 
 
 ## Reproducing figures from the paper
 
