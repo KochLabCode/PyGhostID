@@ -1,0 +1,584 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PyGhostID package &mdash; PyGhostID 1.0.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=1ed6394b"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="PyGhostID" href="modules.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            PyGhostID
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">PyGhostID package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#module-PyGhostID">Module contents</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#PyGhostID.draw_network"><code class="docutils literal notranslate"><span class="pre">draw_network()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PyGhostID.find_local_Qminimum"><code class="docutils literal notranslate"><span class="pre">find_local_Qminimum()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PyGhostID.ghostID"><code class="docutils literal notranslate"><span class="pre">ghostID()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PyGhostID.ghostID_phaseSpaceSample"><code class="docutils literal notranslate"><span class="pre">ghostID_phaseSpaceSample()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PyGhostID.ghost_connections"><code class="docutils literal notranslate"><span class="pre">ghost_connections()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PyGhostID.make_batch_model"><code class="docutils literal notranslate"><span class="pre">make_batch_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PyGhostID.qOnGrid"><code class="docutils literal notranslate"><span class="pre">qOnGrid()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PyGhostID.track_ghost_branch"><code class="docutils literal notranslate"><span class="pre">track_ghost_branch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PyGhostID.unify_IDs"><code class="docutils literal notranslate"><span class="pre">unify_IDs()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#PyGhostID.unique_ghosts"><code class="docutils literal notranslate"><span class="pre">unique_ghosts()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">PyGhostID</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">PyGhostID</a></li>
+      <li class="breadcrumb-item active">PyGhostID package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/PyGhostID.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="pyghostid-package">
+<h1>PyGhostID package<a class="headerlink" href="#pyghostid-package" title="Link to this heading"></a></h1>
+<section id="module-PyGhostID">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-PyGhostID" title="Link to this heading"></a></h2>
+<p>PyGhostID - identification of SN-ghosts and composite ghost structures in dynamical systems.</p>
+<p>2025-2026 by Daniel Koch</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="PyGhostID.draw_network">
+<span class="sig-prename descclassname"><span class="pre">PyGhostID.</span></span><span class="sig-name descname"><span class="pre">draw_network</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">adj_matrix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nodeCols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nlbls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'fdp'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">graphviz_args</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layout_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rankdir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'TB'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">node_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1800</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_font_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">font</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Arial'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/PyGhostID/core.html#draw_network"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#PyGhostID.draw_network" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>layout</strong> (<em>str</em><em>, </em><em>optional</em>) – <p>Layout algorithm used to draw the network.</p>
+<dl class="simple">
+<dt>Graphviz:</dt><dd><p>’fdp’, ‘dot’, ‘neato’, ‘sfdp’, ‘circo’</p>
+</dd>
+<dt>Semantic aliases:</dt><dd><p>’hierarchical’ -&gt; Graphviz ‘dot’</p>
+</dd>
+<dt>NetworkX:</dt><dd><p>any nx.*_layout function (NOT nx.draw_*)</p>
+</dd>
+</dl>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="PyGhostID.find_local_Qminimum">
+<span class="sig-prename descclassname"><span class="pre">PyGhostID.</span></span><span class="sig-name descname"><span class="pre">find_local_Qminimum</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">global_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'lhs'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'L-BFGS-B'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">global_options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/PyGhostID/core.html#find_local_Qminimum"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#PyGhostID.find_local_Qminimum" title="Link to this definition"></a></dt>
+<dd><p>Search for a Q-minimum within a region of radius delta around a given point
+x0 in phase space, where Q(x) = 0.5 * ||F(x)||^2 and F is the vector field
+defined by model. The search combines a global strategy (either sampling or
+a global optimisation algorithm) with an optional subsequent local
+optimisation step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>callable</em>) – Python function describing the system dynamics.</p></li>
+<li><p><strong>x0</strong> (<em>array-like</em>) – Centre of the search region in phase space. The Q-minimum is sought
+within a ball of radius delta around this point.</p></li>
+<li><p><strong>model_params</strong> (<em>list</em><em> or </em><em>array-like</em>) – Parameters passed as arguments to model.</p></li>
+<li><p><strong>delta</strong> (<em>float</em>) – Radius of the region around x0 in which to search for a Q-minimum.</p></li>
+<li><p><strong>global_method</strong> (<em>str</em><em>, </em><em>optional</em>) – <p>Strategy used for the global search stage. Options are:</p>
+<dl class="simple">
+<dt>’lhs’ (default)</dt><dd><p>Draw a Latin-hypercube sample from the delta-ball around x0,
+evaluate Q at each sample point, and pass the k_seeds points with
+the lowest Q-values to the local optimiser as starting points.
+Controlled via global_options (see below).</p>
+</dd>
+<dt>’differential_evolution’</dt><dd><p>Use scipy.optimize.differential_evolution to search for a
+Q-minimum within the delta-ball.</p>
+</dd>
+<dt>’dual_annealing’</dt><dd><p>Use scipy.optimize.dual_annealing to search for a Q-minimum
+within the delta-ball.</p>
+</dd>
+<dt>’basin_hopping’</dt><dd><p>Use scipy.optimize.basin_hopping to search for a Q-minimum
+within the delta-ball.</p>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>local_method</strong> (<em>str</em><em>, </em><em>optional</em>) – Local optimisation method applied after the global search stage.
+Accepts any method available in scipy.optimize.minimize.
+Default is ‘L-BFGS-B’.</p></li>
+<li><p><strong>global_options</strong> (<em>dict</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – <p>Options controlling the global search stage. For the scipy.optimize
+global methods (‘differential_evolution’, ‘dual_annealing’,
+‘basin_hopping’), any keyword argument accepted by the corresponding
+scipy.optimize function may be provided. For global_method=’lhs’,
+the following keys are recognised:</p>
+<dl class="simple">
+<dt>n_samples<span class="classifier">int or None</span></dt><dd><p>Size of the Latin-hypercube sample. If None, chosen automatically
+as min(2000, max(200, 20 * dim)), where dim is the dimension of
+the model.</p>
+</dd>
+<dt>k_seeds<span class="classifier">int or None</span></dt><dd><p>Number of lowest-Q sample points passed to the local optimiser as
+starting points. If None, chosen automatically as
+min(5, max(2, int(sqrt(dim)))), where dim is the dimension of
+the model.</p>
+</dd>
+<dt>seed<span class="classifier">int or None</span></dt><dd><p>Random seed for the Latin-hypercube sampler. Setting a specific
+value ensures exact reproducibility of the sample. Default is None.</p>
+</dd>
+</dl>
+<p>Default for global_options is None (all sub-options use their defaults).</p>
+</p></li>
+<li><p><strong>local_options</strong> (<em>dict</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Options passed directly to scipy.optimize.minimize for the local
+optimisation step. Accepts any keyword argument recognised by the
+chosen local_method. Default is None.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, enables control outputs during the search. Default is False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>result</strong> – The identified Q-minimum within the delta-ball around x0.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>OptimizeResult or similar</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="PyGhostID.ghostID">
+<span class="sig-prename descclassname"><span class="pre">PyGhostID.</span></span><span class="sig-name descname"><span class="pre">ghostID</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trajectory</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epsilon_gid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.05</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/PyGhostID/core.html#ghostID"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#PyGhostID.ghostID" title="Link to this definition"></a></dt>
+<dd><p>Identify ghost states along a simulated trajectory by detecting Q-minima and
+evaluating the eigenvalue spectrum of the Jacobian along trajectory segments
+in their vicinity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>callable</em>) – Python function describing the system dynamics.</p></li>
+<li><p><strong>params</strong> (<em>list</em><em> or </em><em>array-like</em>) – Parameters passed as arguments to model.</p></li>
+<li><p><strong>dt</strong> (<em>float</em>) – Step-size of the numerical integration used to simulate trajectory.</p></li>
+<li><p><strong>trajectory</strong> (<em>array-like</em>) – A trajectory simulated by the system to be analysed for ghost states.</p></li>
+<li><p><strong>epsilon_gid</strong> (<em>float</em><em>, </em><em>optional</em>) – Radius of the epsilon-sphere around Q-minima. Determines which trajectory
+segments are used for eigenvalue evaluation: only points within this distance
+of a Q-minimum are included. Values in the range 0.01–0.1 are reasonable
+for many models (default is 0.05). The value should be large enough that
+segments contain sufficient points for reliable eigenvalue estimation, but
+small enough that eigenvalues remain representative of the local phase-space
+topology around the candidate ghost. A practical tuning strategy is to start
+with small values and increase until eigenvalue control plots look reasonably
+smooth.</p></li>
+<li><p><strong>**kwargs</strong> – <p>Optional keyword arguments:</p>
+<dl class="simple">
+<dt>delta_gid<span class="classifier">float</span></dt><dd><p>Phase-space distance below which two ghosts identified by GhostID are
+considered the same and assigned the same identifier. Default is 0.1.</p>
+</dd>
+<dt>peak_kwargs<span class="classifier">dict</span></dt><dd><p>Additional keyword arguments passed to scipy.signal.find_peaks to
+improve detection of Q-minima from peaks in the pQ time-series.</p>
+</dd>
+<dt>evLimit<span class="classifier">float</span></dt><dd><p>Default is 0 (disabled). If set to a value greater than 0, enables the
+indirect method of ghost identification: a trajectory segment is
+considered to pass near a ghost if (1) the absolute value of the median
+of eigenvalues along the segment is below evLimit, (2) the linear fit of
+eigenvalues has R^2 &gt;= 0.99, and (3) the slope of the fit lies within the
+range given by slopeLimits.</p>
+</dd>
+<dt>slopeLimits<span class="classifier">array-like of length 2</span></dt><dd><p>Upper and lower bounds for the eigenvalue slope used in the indirect
+identification method. Ignored if evLimit = 0. Default is [0, inf].</p>
+</dd>
+<dt>batchModel<span class="classifier">callable</span></dt><dd><p>Vectorized (batch) version of model able to handle batch inputs. Can be
+provided to improve performance when ghostID is called repeatedly with the
+same model, avoiding repeated calls to make_batch_model. If not provided,
+ghostID constructs a batch model internally via make_batch_model.</p>
+</dd>
+</dl>
+<p><strong>Eigenvalue cleaning</strong></p>
+<p>Because eigenvalue indexing along a trajectory segment is not guaranteed to
+be consistent across consecutive time steps (i.e. lambda_1 at time t may be
+lambda_2 at time t+1), two complementary correction methods are available:</p>
+<dl class="simple">
+<dt>ev_outlier_removal<span class="classifier">bool</span></dt><dd><p>If True, removes eigenvalue outliers detected within a sliding window.
+An eigenvalue is considered an outlier if it falls above q3 + k*(q3-q1)
+or below q1 - k*(q3-q1), where q1 and q3 are the 25th and 75th
+percentiles and k is set by ev_outlier_k. Default is False.</p>
+</dd>
+<dt>ev_outlier_removal_k<span class="classifier">float</span></dt><dd><p>Controls the width of the non-outlier range (see ev_outlier_removal).
+Default is 1.5.</p>
+</dd>
+<dt>ev_outlier_removal_ws<span class="classifier">float</span></dt><dd><p>Size of the sliding window used for outlier detection. Default is 7.</p>
+</dd>
+<dt>eigval_NN_sorting<span class="classifier">bool</span></dt><dd><p>If True, sorts eigenvalues across time for each index i using a
+nearest-neighbour prediction. Useful when eigenvalue time-series appear
+scattered or discontinuous. Default is False.</p>
+</dd>
+</dl>
+<p><strong>Control outputs</strong></p>
+<dl>
+<dt>display_warnings<span class="classifier">bool</span></dt><dd><p>Show or suppress warning messages from GhostID.</p>
+</dd>
+<dt>ctrlOutputs<span class="classifier">dict</span></dt><dd><p>Controls diagnostic plots of the algorithm’s two core quantities
+(pQ-values and eigenvalues). Recognised keys:</p>
+<dl class="simple">
+<dt>ctrl_qplot (bool)<span class="classifier">plot pQ-values and detected Q-minima along</span></dt><dd><p>the trajectory.</p>
+</dd>
+<dt>qplot_xscale (str)<span class="classifier">x-axis scale for Q-plot, ‘linear’ (default)</span></dt><dd><p>or ‘log’.</p>
+</dd>
+<dt>qplot_yscale (str)<span class="classifier">y-axis scale for Q-plot, ‘linear’ (default)</span></dt><dd><p>or ‘log’.</p>
+</dd>
+<dt>ctrl_evplot (bool)<span class="classifier">plot eigenvalues along each trajectory segment</span></dt><dd><p>around identified Q-minima, including the
+evaluation criteria listed in the plot heading.</p>
+</dd>
+<dt>evplot_xscale (str)<span class="classifier">x-axis scale for eigenvalue plot, ‘linear’</span></dt><dd><p>(default) or ‘log’.</p>
+</dd>
+<dt>evplot_yscale (str)<span class="classifier">y-axis scale for eigenvalue plot, ‘linear’</span></dt><dd><p>(default) or ‘log’.</p>
+</dd>
+</dl>
+</dd>
+<dt>return_ctrl_figs<span class="classifier">bool</span></dt><dd><p>If True, returns control plot figures for manual customisation instead
+of displaying them inline. Default is False.</p>
+</dd>
+</dl>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>ghostSeq</strong> (<em>list of dict</em>) – List of identified ghost states, each represented as a Python dictionary.</p></li>
+<li><p><strong>control_figures</strong> (<em>optional</em>) – Control plot figures, returned only if return_ctrl_figs is True.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="PyGhostID.ghostID_phaseSpaceSample">
+<span class="sig-prename descclassname"><span class="pre">PyGhostID.</span></span><span class="sig-name descname"><span class="pre">ghostID_phaseSpaceSample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_start</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_end</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">state_ranges</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'RK45'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rtol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">atol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-06</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_workers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/PyGhostID/core.html#ghostID_phaseSpaceSample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#PyGhostID.ghostID_phaseSpaceSample" title="Link to this definition"></a></dt>
+<dd><p>Identify ghost states across a region of phase space by simulating multiple
+trajectories from initial conditions drawn by Latin-hypercube sampling and
+evaluating each trajectory with ghostID.</p>
+<p>Implements an adaptive parallel-processing routine: uses threads when run
+inside Jupyter or Spyder (avoiding pickling issues) and processes when run
+as a standalone script for full CPU utilisation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>callable</em>) – Python function describing the system dynamics.</p></li>
+<li><p><strong>model_params</strong> (<em>list</em><em> or </em><em>array-like</em>) – Parameters passed as arguments to model.</p></li>
+<li><p><strong>t_start</strong> (<em>float</em>) – Start time of each simulated trajectory.</p></li>
+<li><p><strong>t_end</strong> (<em>float</em>) – End time of each simulated trajectory.</p></li>
+<li><p><strong>dt</strong> (<em>float</em>) – Step-size for numerical integration.</p></li>
+<li><p><strong>state_ranges</strong> (<em>list</em><em> of </em><em>tuple</em>) – List of n tuples (one per dimension of the system), each specifying the
+(lower, upper) boundaries of the phase space region to be sampled along
+that coordinate. For example, for a 2D system:
+[(x_min, x_max), (y_min, y_max)].</p></li>
+<li><p><strong>n_samples</strong> (<em>int</em><em>, </em><em>optional</em>) – Number of trajectories to simulate and analyse for ghost states.</p></li>
+<li><p><strong>method</strong> (<em>str</em><em>, </em><em>optional</em>) – Integration method passed to scipy.integrate.solve_ivp. Default is ‘RK45’.</p></li>
+<li><p><strong>rtol</strong> (<em>float</em><em>, </em><em>optional</em>) – Relative tolerance for the numerical integrator. Default is 1e-3.</p></li>
+<li><p><strong>atol</strong> (<em>float</em><em>, </em><em>optional</em>) – Absolute tolerance for the numerical integrator. Default is 1e-6.</p></li>
+<li><p><strong>n_workers</strong> (<em>int</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Number of CPU cores used for parallel processing. If None, the number
+of workers is chosen automatically. Default is None.</p></li>
+<li><p><strong>**kwargs</strong> – <p>All keyword arguments accepted by ghostID are also accepted here (see
+ghostID documentation). Note that control plots are unlikely to render
+correctly when parallel processing is enabled.</p>
+<p>Additional kwargs specific to ghostID_phaseSpaceSample:</p>
+<dl class="simple">
+<dt>delta_unify<span class="classifier">float</span></dt><dd><p>Distance in phase space above which two ghosts identified across
+different trajectories in the phase space sample are considered
+distinct and assigned different identifiers. Analogous to delta_gid
+in ghostID, but applied globally across all trajectories rather than
+within a single trajectory. Default is 0.1.</p>
+</dd>
+<dt>seed<span class="classifier">int or None</span></dt><dd><p>Random seed for the Latin-hypercube sampler. Setting a specific value
+ensures exact reproducibility of the phase space sample. Default is
+None (non-reproducible random sample).</p>
+</dd>
+</dl>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>results</strong> – List containing a ghostSeq (see ghostID documentation) for each
+simulated trajectory, allowing ghost states to be retrieved and compared
+across the sampled region of phase space.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="PyGhostID.ghost_connections">
+<span class="sig-prename descclassname"><span class="pre">PyGhostID.</span></span><span class="sig-name descname"><span class="pre">ghost_connections</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gSeqs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/PyGhostID/core.html#ghost_connections"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#PyGhostID.ghost_connections" title="Link to this definition"></a></dt>
+<dd><p>Take a list of ghost sequences and turn it into an adjacency matrix.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>gSeqs</strong> (<em>list</em>) – List of ghost sequences that have been generated by ghostID.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>adjM</strong> (<em>ndarray</em>) – Adjacency matrix representing connections between identified ghosts in
+phase space.</p></li>
+<li><p><strong>labels</strong> (<em>list</em>) – Labels of the matrix rows/columns.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="PyGhostID.make_batch_model">
+<span class="sig-prename descclassname"><span class="pre">PyGhostID.</span></span><span class="sig-name descname"><span class="pre">make_batch_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/PyGhostID/core.html#make_batch_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#PyGhostID.make_batch_model" title="Link to this definition"></a></dt>
+<dd><p>Wrap a single-point model into a batch version using vmap.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>callable</em>) – Function (t, z, params) -&gt; dz/dt.</p></li>
+<li><p><strong>params</strong> (<em>list</em><em> or </em><em>array-like</em>) – Model parameters (passed unchanged).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>batched</strong> – Function (Zs, params) -&gt; dZs/dt for batch input, where Zs has shape
+(num_points, n).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>callable</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="PyGhostID.qOnGrid">
+<span class="sig-prename descclassname"><span class="pre">PyGhostID.</span></span><span class="sig-name descname"><span class="pre">qOnGrid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_points</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ranges</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overrides</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">indexing</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ij'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">jit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/PyGhostID/core.html#qOnGrid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#PyGhostID.qOnGrid" title="Link to this definition"></a></dt>
+<dd><p>Evaluate Q(x) = 0.5 * ||F(x)||^2 on a phase space grid, where F is the
+vector field defined by the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> (<em>callable</em>) – Python function describing the system dynamics.</p></li>
+<li><p><strong>model_params</strong> (<em>list</em><em> or </em><em>array-like</em>) – Parameters passed as arguments to model.</p></li>
+<li><p><strong>coords</strong> (<em>list</em><em> of </em><em>1D array-like</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Explicit phase space grid on which to evaluate Q-values, provided as a
+list of 1D arrays (one per dimension). If None, the grid is constructed
+automatically using n_points, ranges, and overrides (see below).
+Default is None.</p></li>
+<li><p><strong>n_points</strong> (<em>int</em><em> or </em><em>list</em><em> of </em><em>int</em><em>, </em><em>optional</em>) – Number of grid points along each dimension. A single integer applies
+the same value to all dimensions; a list of integers sets each
+dimension individually. Ignored if coords is provided. Default is 50.</p></li>
+<li><p><strong>ranges</strong> (<em>tuple</em><em> or </em><em>list</em><em> of </em><em>tuple</em><em>, </em><em>optional</em>) – Bounds of the grid along each dimension, given as a
+single (lower, upper) tuple applied to all dimensions, or a list of
+such tuples to set each dimension individually. Ignored if coords is
+provided. Default is (-2, 2).</p></li>
+<li><p><strong>overrides</strong> (<em>dict</em><em> or </em><em>None</em><em>, </em><em>optional</em>) – Dictionary for overriding n_points and/or ranges for specific
+individual axes without affecting the others. Keys are axis indices
+(integers) and values are dictionaries with keys ‘n’ (int) and/or
+‘range’ (tuple). For example, to set axis 1 to 100 points over
+(-5.0, 5.0):  {1: {‘n’: 100, ‘range’: (-5.0, 5.0)}}. Ignored if
+coords is provided. Default is None.</p></li>
+<li><p><strong>indexing</strong> (<em>str</em><em>, </em><em>optional</em>) – Indexing convention passed to jax.numpy.meshgrid. Default is ‘ij’
+(matrix-style indexing, where the first index varies along rows).</p></li>
+<li><p><strong>jit</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, enables JAX just-in-time (JIT) compilation to speed up
+evaluation of Q on the grid. Default is False.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>Q_grid</strong> – Array of Q-values evaluated at each point of the phase space grid,
+with shape determined by n_points and the number of dimensions.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>array-like</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="PyGhostID.track_ghost_branch">
+<span class="sig-prename descclassname"><span class="pre">PyGhostID.</span></span><span class="sig-name descname"><span class="pre">track_ghost_branch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ghost</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_params</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">par_nr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">par_steps</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dpar</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_end</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">icStep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'first'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epsilon_gid</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">solve_ivp_method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'RK45'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rtol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.001</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">atol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-06</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/PyGhostID/core.html#track_ghost_branch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#PyGhostID.track_ghost_branch" title="Link to this definition"></a></dt>
+<dd><p>Track a ghost state across a parameter sweep by iteratively updating the parameter
+and re-identifying the ghost at each step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ghost</strong> (<em>dict</em>) – Ghost to be tracked, identified either by ‘ghostID’ or ‘ghostID_phaseSpaceSample’.</p></li>
+<li><p><strong>model</strong> (<em>callable</em>) – Python function describing the system dynamics.</p></li>
+<li><p><strong>model_params</strong> (<em>list</em><em> or </em><em>array-like</em>) – Parameters for the model function.</p></li>
+<li><p><strong>par_nr</strong> (<em>int</em>) – Index of the parameter in model_params to be varied during the sweep.</p></li>
+<li><p><strong>par_steps</strong> (<em>int</em>) – Number of times the parameter is updated during the sweep.</p></li>
+<li><p><strong>dpar</strong> (<em>float</em>) – Size of the parameter increment per iteration. Use a positive value to increase
+the parameter and a negative value to decrease it.</p></li>
+<li><p><strong>t_end</strong> (<em>float</em>) – Length of the trajectory integrated at each iteration step.</p></li>
+<li><p><strong>dt</strong> (<em>float</em>) – Step-size used for numerical integration.</p></li>
+<li><p><strong>delta</strong> (<em>float</em><em>, </em><em>optional</em>) – Size of the region around the current ghost position (xg) in which to search
+for xQmin (the point of minimum speed). Default is 0.5.</p></li>
+<li><p><strong>icStep</strong> (<em>float</em><em>, </em><em>optional</em>) – Distance from xQmin at which to initialize a trajectory that will be analyzed
+by GhostID. Default is 0.1.</p></li>
+<li><p><strong>mode</strong> (<em>{'first'</em><em>, </em><em>'closest'}</em><em>, </em><em>optional</em>) – <p>Strategy for selecting among multiple ghosts potentially identified along a
+trajectory.</p>
+<ul>
+<li><p>’first’ : take the first ghost found (default).</p></li>
+<li><p>’closest’ : take the ghost closest in phase space to the current ghost</p></li>
+</ul>
+<p>position (xg).</p>
+</p></li>
+<li><p><strong>epsilon_gid</strong> (<em>float</em><em>, </em><em>optional</em>) – Threshold parameter for GhostID (see section 1.1 of the paper). Default is 0.1.</p></li>
+<li><p><strong>solve_ivp_method</strong> (<em>str</em><em>, </em><em>optional</em>) – Integration method passed to scipy.integrate.solve_ivp (e.g. ‘RK45’).
+Default is ‘RK45’.</p></li>
+<li><p><strong>rtol</strong> (<em>float</em><em>, </em><em>optional</em>) – Relative tolerance for the numerical integrator. Default is 1e-3.</p></li>
+<li><p><strong>atol</strong> (<em>float</em><em>, </em><em>optional</em>) – Absolute tolerance for the numerical integrator. Default is 1e-6.</p></li>
+<li><p><strong>**kwargs</strong> – <p>Optional keyword arguments:</p>
+<dl class="simple">
+<dt>distQminThr<span class="classifier">float</span></dt><dd><p>Maximum allowable distance between the identified ghost and xQmin.
+Any ghost candidate whose distance from xQmin exceeds this
+threshold is rejected. Default is infinity (no constraint).</p>
+</dd>
+</dl>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><strong>ghostPositions</strong> (<em>array-like</em>) – Positions in phase space of the ghosts found at each parameter step.</p></li>
+<li><p><strong>parSeq</strong> (<em>array-like</em>) – Sequence of parameter values at which each ghost was identified.</p></li>
+<li><p><strong>ghostSeq_p</strong> (<em>list</em>) – Full list of ghost objects found at each parameter value, enabling extraction
+of additional ghost properties beyond phase-space position.</p></li>
+<li><p><strong>control_plots</strong> (<em>optional</em>) – Control plots for GhostID, returned only if the corresponding option is enabled.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="PyGhostID.unify_IDs">
+<span class="sig-prename descclassname"><span class="pre">PyGhostID.</span></span><span class="sig-name descname"><span class="pre">unify_IDs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">seqs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta_unify</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">update</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/PyGhostID/core.html#unify_IDs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#PyGhostID.unify_IDs" title="Link to this definition"></a></dt>
+<dd><p>Unify ids across multiple sequences of transient ghost state objects found in
+timecourse simulations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>seqs</strong> (<em>ghostSeq</em><em> (</em><em>list</em><em> of </em><em>list</em><em> of </em><em>dict</em><em>)</em>) – <p>Each inner list corresponds to one simulation run. Each dict represents a
+ghost state and must contain:
+- ‘position’ : ndarray</p>
+<blockquote>
+<div><p>Phase-space position of the ghost.</p>
+</div></blockquote>
+<ul>
+<li><dl class="simple">
+<dt>’id’<span class="classifier">str</span></dt><dd><p>String of the form ‘G{i}’.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>’q-value’<span class="classifier">float</span></dt><dd><p>Scalar quality / stability measure.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt>’dimension’<span class="classifier">int</span></dt><dd><p>Dimension associated with the ghost.</p>
+</dd>
+</dl>
+</li>
+</ul>
+</p></li>
+<li><p><strong>delta_unify</strong> (<em>float</em><em>, </em><em>optional</em>) – Distance threshold below which two ghost states are considered identical
+(i.e. the same ghost across runs). Default is 0.1.</p></li>
+<li><p><strong>update</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, perform a second pass after ID unification that synchronizes
+properties (position, q-value, dimension) across all ghosts sharing the
+same ID. Default is True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>seqs</strong> – The same list structure, with unified IDs and (optionally) updated ghost
+properties.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of list of dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="PyGhostID.unique_ghosts">
+<span class="sig-prename descclassname"><span class="pre">PyGhostID.</span></span><span class="sig-name descname"><span class="pre">unique_ghosts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gSeq</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/PyGhostID/core.html#unique_ghosts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#PyGhostID.unique_ghosts" title="Link to this definition"></a></dt>
+<dd><p>Takes list of unified ghost sequences and returns a list of all unique ghosts</p>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="modules.html" class="btn btn-neutral float-left" title="PyGhostID" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Daniel Koch.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

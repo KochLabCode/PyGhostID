@@ -1,0 +1,208 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quickstart &mdash; PyGhostID 1.0.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=1ed6394b"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Tutorials" href="tutorials.html" />
+    <link rel="prev" title="Overview" href="overview.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PyGhostID
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api/modules.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PyGhostID</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Quickstart</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/quickstart.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="quickstart">
+<h1>Quickstart<a class="headerlink" href="#quickstart" title="Link to this heading"></a></h1>
+<p>Using <code class="docutils literal notranslate"><span class="pre">ghostID</span></code> is simple. In this example we’ll implement the normal form of the saddle-node bifurcation in 2D:</p>
+<div class="math notranslate nohighlight">
+\[ \dot x = \mu + x^2, \quad \dot y = -y,\]</div>
+<p>For <span class="math notranslate nohighlight">\(\mu&gt;0\)</span> the system doesn’t have any fixed points but instead a significant ghost or bottleneck for small enough values of <span class="math notranslate nohighlight">\(\mu\)</span>.
+In the code below we import some packages, define the model and simulate a trajectory. Note that only <code class="docutils literal notranslate"><span class="pre">jax.numpy</span></code> is strictily necessary to define the ODE system as <code class="docutils literal notranslate"><span class="pre">ghostID</span></code> runs on <code class="docutils literal notranslate"><span class="pre">jax</span></code> models for improved performance. Instead of using <code class="docutils literal notranslate"><span class="pre">solve_ivp</span></code> you can also use a method from <code class="docutils literal notranslate"><span class="pre">jax</span></code> for faster simulations.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># imports</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.integrate</span><span class="w"> </span><span class="kn">import</span> <span class="n">solve_ivp</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+
+<span class="c1"># define model</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">normalform_SN_bifurcation</span><span class="p">(</span><span class="n">t</span><span class="p">,</span><span class="n">z</span><span class="p">,</span><span class="n">para</span><span class="p">):</span>
+
+    <span class="n">mu</span><span class="o">=</span><span class="n">para</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">dx</span> <span class="o">=</span> <span class="n">mu</span> <span class="o">+</span> <span class="n">z</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span>
+    <span class="n">dy</span><span class="o">=</span> <span class="o">-</span><span class="n">z</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+         
+    <span class="k">return</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">dx</span><span class="p">,</span> <span class="n">dy</span><span class="p">])</span>
+
+<span class="c1"># set model parameters</span>
+<span class="n">mu</span> <span class="o">=</span> <span class="mf">0.01</span>
+
+<span class="c1"># set time parameters</span>
+<span class="n">dt</span> <span class="o">=</span> <span class="mf">0.05</span>
+<span class="n">t_end</span> <span class="o">=</span> <span class="mi">30</span>
+<span class="n">timesteps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">t_end</span><span class="p">,</span><span class="nb">int</span><span class="p">(</span><span class="n">t_end</span><span class="o">/</span><span class="n">dt</span><span class="p">))</span>
+
+<span class="c1"># initial conditions</span>
+<span class="n">x0</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+<span class="n">y0</span> <span class="o">=</span> <span class="mf">0.5</span>
+
+<span class="c1"># run simulation</span>
+<span class="n">sol</span> <span class="o">=</span> <span class="n">solve_ivp</span><span class="p">(</span><span class="n">normalform_SN_bifurcation</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t_end</span><span class="p">),</span> <span class="p">[</span><span class="n">x0</span><span class="p">,</span><span class="n">y0</span><span class="p">],</span> <span class="n">t_eval</span><span class="o">=</span><span class="n">timesteps</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">([</span><span class="n">mu</span><span class="p">],),</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;RK45&#39;</span><span class="p">)</span>
+
+<span class="c1"># plot time series</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">sol</span><span class="o">.</span><span class="n">t</span><span class="p">,</span> <span class="n">sol</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;x(t)&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">sol</span><span class="o">.</span><span class="n">t</span><span class="p">,</span> <span class="n">sol</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;y(t)&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mf">1.5</span><span class="p">,</span> <span class="mf">1.5</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;Time&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;State Variables&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><img alt="timeseries" src="_images/bu_1.png" /></p>
+<p>While <span class="math notranslate nohighlight">\(y(t)\)</span> quickly reaches 0, <span class="math notranslate nohighlight">\(x(t)\)</span> lingers for a long time in the vicinity of 0 - that’s our ghost - and eventually takes off to approach infinity.
+Once we have the simulation, we simply import <code class="docutils literal notranslate"><span class="pre">PyGhostID</span></code>, extract the trajectory from the solution object provided by <code class="docutils literal notranslate"><span class="pre">solve_ivp</span></code>, and use the <code class="docutils literal notranslate"><span class="pre">ghostID</span></code> function to identify the ghost. The required arguments are the <em>model function</em>, the <em>model parameters</em>, <em>stepsize</em> used during the simulation, and the <em>trajectory</em> - in this specific order. Here we go:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># import PyGhostID package</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">PyGhostID</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">gid</span>
+
+<span class="c1"># extract trajectory</span>
+<span class="n">trajectory</span><span class="o">=</span><span class="n">sol</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">T</span>
+
+<span class="c1"># run ghostID</span>
+<span class="n">ghostSeq</span> <span class="o">=</span> <span class="n">gid</span><span class="o">.</span><span class="n">ghostID</span><span class="p">(</span><span class="n">normalform_SN_bifurcation</span><span class="p">,[</span><span class="n">mu</span><span class="p">],</span><span class="n">dt</span><span class="p">,</span><span class="n">trajectory</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">ghostID</span></code> returns a <code class="docutils literal notranslate"><span class="pre">ghostSeq</span></code> - a list of dictionaries, each representing a distinct ghost that has been identified along the given trajectory. Each dictionary contains several datafields which provide information about the ghost, e.g. a unique identifier, the trapping time at the ghost, its position in phase space etc (see Figure 1b above). We can print each ghost from the ghostSeq to learn more:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">ghostSeq</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-plaintext notranslate"><div class="highlight"><pre><span></span>{&#39;id&#39;: &#39;G1&#39;, &#39;time&#39;: np.float64(14.700000000000001), &#39;duration&#39;: np.float64(24.94254253066653), &#39;position&#39;: array([2.07808102e-05, 3.60455693e-07]), &#39;dimension&#39;: 1, &#39;q-value&#39;: np.float32(0.005), &#39;crossing_eigenvalues&#39;: array([0]), &#39;qualifying_slopes&#39;: [], &#39;eigenvalues_qmin&#39;: array([ 0.09935497+0.j, -1.        +0.j], dtype=complex64)}
+</pre></div>
+</div>
+<p>We can see that the ghostSeq isn’t empty and that <code class="docutils literal notranslate"><span class="pre">ghostID</span></code> has identified a single ghost along the trajectory we have analyzed.
+The datafields are very useful for further analysis. For example, we can extract the position of the identified ghost in phase space and thereby plot it:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="mi">5</span><span class="p">))</span>
+
+<span class="c1"># plot trajectory</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">sol</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">sol</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;System trajectory&#39;</span><span class="p">)</span>
+
+<span class="c1"># plot vector field</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+<span class="n">X</span><span class="p">,</span> <span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">quiver</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">mu</span> <span class="o">+</span> <span class="n">X</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="n">Y</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.66</span><span class="p">)</span>
+
+<span class="c1"># extract and plot position of ghost</span>
+<span class="n">gx</span><span class="p">,</span><span class="n">gy</span> <span class="o">=</span> <span class="n">ghostSeq</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;position&quot;</span><span class="p">]</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">gx</span><span class="p">,</span><span class="n">gy</span><span class="p">,</span><span class="s2">&quot;om&quot;</span><span class="p">,</span><span class="n">ms</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span><span class="n">label</span><span class="o">=</span><span class="s1">&#39;Ghost&#39;</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">xlim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]);</span> <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]);</span> <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s1">&#39;y&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><img alt="phasespace" src="_images/bu_2.png" /></p>
+<p>Identifying a ghost from a trajectory requires that the trajectory passes close enough to the ghost to sample at least one monotonous transition from negative to positive real parts of the instantaneous eigenvalues of the system along the trajectory, which can be challenging depending on the system and the type of ghost (e.g. non-attracting). To increase the chances for success we suggest to sample multiple trajectories from different initial conditions. PyGhostID’s <code class="docutils literal notranslate"><span class="pre">ghostID_phaseSpaceSample</span></code> function can automate this process by sampling many trajectories within a specified region of phase space.</p>
+<p>To learn more about how to select suitable hyperparameters for <code class="docutils literal notranslate"><span class="pre">ghostID</span></code> and how to use PyGhostID’s other functionalities, please refer to the tutorials.</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="overview.html" class="btn btn-neutral float-left" title="Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="tutorials.html" class="btn btn-neutral float-right" title="Tutorials" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Daniel Koch.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

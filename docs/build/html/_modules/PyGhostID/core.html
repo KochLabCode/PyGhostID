@@ -1,0 +1,1487 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PyGhostID.core &mdash; PyGhostID 1.0.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=1ed6394b"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            PyGhostID
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials.html">Tutorials</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api/modules.html">API Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">PyGhostID</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">PyGhostID.core</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for PyGhostID.core</h1><div class="highlight"><pre>
+<span></span><span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Core functions of PyGhostID</span>
+
+<span class="sd">@author: Daniel Koch, 2026</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># Import packages</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax</span> 
+<span class="kn">import</span><span class="w"> </span><span class="nn">jax.numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">jnp</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.signal</span><span class="w"> </span><span class="kn">import</span> <span class="n">find_peaks</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.spatial</span><span class="w"> </span><span class="kn">import</span> <span class="n">cKDTree</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.optimize</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">minimize</span><span class="p">,</span>
+    <span class="n">differential_evolution</span><span class="p">,</span>
+    <span class="n">dual_annealing</span><span class="p">,</span>
+    <span class="n">basinhopping</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">qmc</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.integrate</span><span class="w"> </span><span class="kn">import</span> <span class="n">solve_ivp</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">networkx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nx</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">networkx.drawing.nx_agraph</span><span class="w"> </span><span class="kn">import</span> <span class="n">graphviz_layout</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._utils</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">concurrent.futures</span><span class="w"> </span><span class="kn">import</span> <span class="n">ThreadPoolExecutor</span><span class="p">,</span> <span class="n">ProcessPoolExecutor</span><span class="p">,</span> <span class="n">as_completed</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tqdm</span><span class="w"> </span><span class="kn">import</span> <span class="n">tqdm</span>
+
+<span class="c1"># Functions</span>
+
+<div class="viewcode-block" id="ghostID">
+<a class="viewcode-back" href="../../api/PyGhostID.html#PyGhostID.ghostID">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ghostID</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">trajectory</span><span class="p">,</span> <span class="n">epsilon_gid</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Identify ghost states along a simulated trajectory by detecting Q-minima and</span>
+<span class="sd">    evaluating the eigenvalue spectrum of the Jacobian along trajectory segments</span>
+<span class="sd">    in their vicinity.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    model : callable</span>
+<span class="sd">        Python function describing the system dynamics.</span>
+<span class="sd">    params : list or array-like</span>
+<span class="sd">        Parameters passed as arguments to model.</span>
+<span class="sd">    dt : float</span>
+<span class="sd">        Step-size of the numerical integration used to simulate trajectory.</span>
+<span class="sd">    trajectory : array-like</span>
+<span class="sd">        A trajectory simulated by the system to be analysed for ghost states.</span>
+<span class="sd">    epsilon_gid : float, optional</span>
+<span class="sd">        Radius of the epsilon-sphere around Q-minima. Determines which trajectory</span>
+<span class="sd">        segments are used for eigenvalue evaluation: only points within this distance</span>
+<span class="sd">        of a Q-minimum are included. Values in the range 0.01--0.1 are reasonable</span>
+<span class="sd">        for many models (default is 0.05). The value should be large enough that</span>
+<span class="sd">        segments contain sufficient points for reliable eigenvalue estimation, but</span>
+<span class="sd">        small enough that eigenvalues remain representative of the local phase-space</span>
+<span class="sd">        topology around the candidate ghost. A practical tuning strategy is to start</span>
+<span class="sd">        with small values and increase until eigenvalue control plots look reasonably</span>
+<span class="sd">        smooth.</span>
+<span class="sd">    **kwargs</span>
+<span class="sd">        Optional keyword arguments:</span>
+
+<span class="sd">        delta_gid : float</span>
+<span class="sd">            Phase-space distance below which two ghosts identified by GhostID are</span>
+<span class="sd">            considered the same and assigned the same identifier. Default is 0.1.</span>
+<span class="sd">        peak_kwargs : dict</span>
+<span class="sd">            Additional keyword arguments passed to scipy.signal.find_peaks to</span>
+<span class="sd">            improve detection of Q-minima from peaks in the pQ time-series.</span>
+<span class="sd">        evLimit : float</span>
+<span class="sd">            Default is 0 (disabled). If set to a value greater than 0, enables the</span>
+<span class="sd">            indirect method of ghost identification: a trajectory segment is</span>
+<span class="sd">            considered to pass near a ghost if (1) the absolute value of the median</span>
+<span class="sd">            of eigenvalues along the segment is below evLimit, (2) the linear fit of</span>
+<span class="sd">            eigenvalues has R^2 &gt;= 0.99, and (3) the slope of the fit lies within the</span>
+<span class="sd">            range given by slopeLimits.</span>
+<span class="sd">        slopeLimits : array-like of length 2</span>
+<span class="sd">            Upper and lower bounds for the eigenvalue slope used in the indirect</span>
+<span class="sd">            identification method. Ignored if evLimit = 0. Default is [0, inf].</span>
+<span class="sd">        batchModel : callable</span>
+<span class="sd">            Vectorized (batch) version of model able to handle batch inputs. Can be</span>
+<span class="sd">            provided to improve performance when ghostID is called repeatedly with the</span>
+<span class="sd">            same model, avoiding repeated calls to make_batch_model. If not provided,</span>
+<span class="sd">            ghostID constructs a batch model internally via make_batch_model.</span>
+
+<span class="sd">        **Eigenvalue cleaning**</span>
+
+<span class="sd">        Because eigenvalue indexing along a trajectory segment is not guaranteed to</span>
+<span class="sd">        be consistent across consecutive time steps (i.e. lambda_1 at time t may be</span>
+<span class="sd">        lambda_2 at time t+1), two complementary correction methods are available:</span>
+
+<span class="sd">        ev_outlier_removal : bool</span>
+<span class="sd">            If True, removes eigenvalue outliers detected within a sliding window.</span>
+<span class="sd">            An eigenvalue is considered an outlier if it falls above q3 + k*(q3-q1)</span>
+<span class="sd">            or below q1 - k*(q3-q1), where q1 and q3 are the 25th and 75th</span>
+<span class="sd">            percentiles and k is set by ev_outlier_k. Default is False.</span>
+<span class="sd">        ev_outlier_removal_k : float</span>
+<span class="sd">            Controls the width of the non-outlier range (see ev_outlier_removal).</span>
+<span class="sd">            Default is 1.5.</span>
+<span class="sd">        ev_outlier_removal_ws : float</span>
+<span class="sd">            Size of the sliding window used for outlier detection. Default is 7.</span>
+<span class="sd">        eigval_NN_sorting : bool</span>
+<span class="sd">            If True, sorts eigenvalues across time for each index i using a</span>
+<span class="sd">            nearest-neighbour prediction. Useful when eigenvalue time-series appear</span>
+<span class="sd">            scattered or discontinuous. Default is False.</span>
+
+<span class="sd">        **Control outputs**</span>
+
+<span class="sd">        display_warnings : bool</span>
+<span class="sd">            Show or suppress warning messages from GhostID.</span>
+<span class="sd">        ctrlOutputs : dict</span>
+<span class="sd">            Controls diagnostic plots of the algorithm&#39;s two core quantities</span>
+<span class="sd">            (pQ-values and eigenvalues). Recognised keys:</span>
+
+<span class="sd">            ctrl_qplot (bool)       : plot pQ-values and detected Q-minima along</span>
+<span class="sd">                                    the trajectory.</span>
+<span class="sd">            qplot_xscale (str)      : x-axis scale for Q-plot, &#39;linear&#39; (default)</span>
+<span class="sd">                                    or &#39;log&#39;.</span>
+<span class="sd">            qplot_yscale (str)      : y-axis scale for Q-plot, &#39;linear&#39; (default)</span>
+<span class="sd">                                    or &#39;log&#39;.</span>
+<span class="sd">            ctrl_evplot (bool)      : plot eigenvalues along each trajectory segment</span>
+<span class="sd">                                    around identified Q-minima, including the</span>
+<span class="sd">                                    evaluation criteria listed in the plot heading.</span>
+<span class="sd">            evplot_xscale (str)     : x-axis scale for eigenvalue plot, &#39;linear&#39;</span>
+<span class="sd">                                    (default) or &#39;log&#39;.</span>
+<span class="sd">            evplot_yscale (str)     : y-axis scale for eigenvalue plot, &#39;linear&#39;</span>
+<span class="sd">                                    (default) or &#39;log&#39;.</span>
+<span class="sd">        return_ctrl_figs : bool</span>
+<span class="sd">            If True, returns control plot figures for manual customisation instead</span>
+<span class="sd">            of displaying them inline. Default is False.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ghostSeq : list of dict</span>
+<span class="sd">        List of identified ghost states, each represented as a Python dictionary.</span>
+<span class="sd">    control_figures : optional</span>
+<span class="sd">        Control plot figures, returned only if return_ctrl_figs is True.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Parse and validate kwargs</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">parse_kwargs</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    
+    <span class="c1"># Extract parameters from config</span>
+    <span class="n">display_warnings</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;display_warnings&#39;</span><span class="p">]</span>
+    <span class="n">delta_gid</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;delta_gid&#39;</span><span class="p">]</span>
+    <span class="n">peak_kwargs</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;peak_kwargs&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s2">&quot;width&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">peak_kwargs</span><span class="p">:</span>  
+        <span class="n">peak_kwargs</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">*</span> <span class="n">dt</span>   <span class="c1"># default if not supplied</span>
+    <span class="n">batchModel</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;batchModel&#39;</span><span class="p">]</span>
+    <span class="n">eigval_NN_sorting</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;eigval_NN_sorting&#39;</span><span class="p">]</span>
+    <span class="n">ev_outlier_removal</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ev_outlier_removal&#39;</span><span class="p">]</span>
+    <span class="n">ev_outlier_removal_ws</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ev_outlier_removal_ws&#39;</span><span class="p">]</span>
+    <span class="n">ev_outlier_removal_k</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ev_outlier_removal_k&#39;</span><span class="p">]</span>
+    <span class="n">evLimit</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;evLimit&#39;</span><span class="p">]</span>
+    <span class="n">slopeLimits</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;slopeLimits&#39;</span><span class="p">]</span>
+    
+    <span class="c1"># Plotting control settings</span>
+    <span class="n">return_ctrl_figs</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;return_ctrl_figs&#39;</span><span class="p">]</span>
+    <span class="n">ctrl_qplot</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ctrl_qplot&#39;</span><span class="p">]</span>
+    <span class="n">qplot_xscale</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;qplot_xscale&#39;</span><span class="p">]</span>
+    <span class="n">qplot_yscale</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;qplot_yscale&#39;</span><span class="p">]</span>
+    <span class="n">ctrl_evplot</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ctrl_evplot&#39;</span><span class="p">]</span>
+    <span class="n">evplot_xscale</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;evplot_xscale&#39;</span><span class="p">]</span>
+    <span class="n">evplot_yscale</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;evplot_yscale&#39;</span><span class="p">]</span>
+          
+    <span class="c1">####################################</span>
+
+    <span class="c1"># Handle batch model</span>
+    <span class="k">if</span> <span class="n">batchModel</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">Xs</span> <span class="o">=</span> <span class="n">batchModel</span><span class="p">(</span><span class="n">trajectory</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">model_batch</span> <span class="o">=</span> <span class="n">make_batch_model</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+        <span class="n">Xs</span> <span class="o">=</span> <span class="n">model_batch</span><span class="p">(</span><span class="n">trajectory</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">return_ctrl_figs</span><span class="p">:</span>
+        <span class="n">ctrl_figures</span> <span class="o">=</span> <span class="p">[]</span>
+            
+    <span class="n">n</span> <span class="o">=</span> <span class="n">trajectory</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># dimension of trajectory</span>
+    <span class="n">fullTransientSeq</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># list of visited transient states to be filled</span>
+              
+    <span class="c1">############# STEP 1 - identify non-oscillatory saddle-node ghosts #############################</span>
+    
+    <span class="c1">### Identify minima in Q-values along trajectory using batch model output</span>
+    
+    <span class="n">Q_ts</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">Xs</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span> 
+    <span class="n">pQ</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">Q_ts</span><span class="p">)</span>
+    
+    <span class="n">idx_minima</span><span class="p">,</span> <span class="n">pk_props</span> <span class="o">=</span> <span class="n">find_peaks</span><span class="p">(</span><span class="n">pQ</span><span class="p">,</span> <span class="o">**</span><span class="n">peak_kwargs</span><span class="p">)</span>  <span class="c1"># positions of Q-minima</span>
+        
+    <span class="k">if</span> <span class="n">ctrl_qplot</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="n">idx_minima</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+            <span class="n">t_axis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">Q_ts</span><span class="p">))</span> <span class="o">*</span> <span class="n">dt</span>
+            <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+            <span class="n">fig</span><span class="o">.</span><span class="n">set_size_inches</span><span class="p">(</span><span class="mi">17</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="mf">2.54</span><span class="p">),</span><span class="mi">17</span><span class="o">/</span><span class="p">(</span><span class="mi">3</span><span class="o">*</span><span class="mf">2.54</span><span class="p">))</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t_axis</span><span class="p">,</span> <span class="n">pQ</span><span class="p">,</span> <span class="s1">&#39;-k&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;pQ(t)&quot;</span><span class="p">)</span>        
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;pQ(t)&quot;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;t&quot;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xscale</span><span class="p">(</span><span class="n">qplot_xscale</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="n">qplot_yscale</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span> <span class="o">=</span> <span class="mi">9</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Detected Q-minima with prominences&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">return_ctrl_figs</span><span class="p">:</span>
+                <span class="n">ctrl_figures</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">fig</span><span class="p">,</span><span class="n">ax</span><span class="p">))</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    
+    <span class="c1"># Precompile JAX Jacobian function</span>
+    <span class="n">J_fun</span> <span class="o">=</span> <span class="n">make_jacfun</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+
+    <span class="c1"># Build KD-tree once for trajectory</span>
+    <span class="n">kdtree</span> <span class="o">=</span> <span class="n">cKDTree</span><span class="p">(</span><span class="n">trajectory</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idx_minima</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">ghostSeq</span> <span class="o">=</span> <span class="p">[]</span>             <span class="c1"># sequence of visited ghosts </span>
+        <span class="n">ghostTimes</span> <span class="o">=</span> <span class="p">[]</span>           <span class="c1"># times at which ghosts have been visited - important for sorting ghosts and oscillatory transients</span>
+        <span class="n">ghostCoordinates</span> <span class="o">=</span> <span class="p">[]</span>     <span class="c1"># unique phase-space positions of all ghosts visited</span>
+        
+        <span class="k">if</span> <span class="n">ctrl_qplot</span><span class="p">:</span>
+
+            <span class="n">t_axis</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">Q_ts</span><span class="p">))</span> <span class="o">*</span> <span class="n">dt</span>
+            <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+            <span class="n">fig</span><span class="o">.</span><span class="n">set_size_inches</span><span class="p">(</span><span class="mi">17</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="mf">2.54</span><span class="p">),</span><span class="mi">17</span><span class="o">/</span><span class="p">(</span><span class="mi">3</span><span class="o">*</span><span class="mf">2.54</span><span class="p">))</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t_axis</span><span class="p">,</span> <span class="n">pQ</span><span class="p">,</span> <span class="s1">&#39;-k&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;pQ(t)&quot;</span><span class="p">)</span>       
+            <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">idx_minima</span> <span class="o">*</span> <span class="n">dt</span><span class="p">,</span> <span class="n">pQ</span><span class="p">[</span><span class="n">idx_minima</span><span class="p">],</span> <span class="s1">&#39;xr&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Q-minima&quot;</span><span class="p">)</span>
+            <span class="c1"># Plot prominence lines</span>
+            <span class="k">if</span> <span class="s2">&quot;prominences&quot;</span> <span class="ow">in</span> <span class="n">pk_props</span><span class="p">:</span>
+                <span class="n">prominences</span> <span class="o">=</span> <span class="n">pk_props</span><span class="p">[</span><span class="s2">&quot;prominences&quot;</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">prom</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">idx_minima</span><span class="p">,</span> <span class="n">prominences</span><span class="p">):</span>
+                    <span class="n">x</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">*</span> <span class="n">dt</span>
+                    <span class="n">peak_val</span> <span class="o">=</span> <span class="n">pQ</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+                    <span class="n">base_val</span> <span class="o">=</span> <span class="n">peak_val</span> <span class="o">-</span> <span class="n">prom</span>
+                    <span class="c1"># vertical line showing prominence</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">vlines</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">base_val</span><span class="p">,</span> <span class="n">peak_val</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">)</span>
+                    <span class="c1"># add text next to line</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">base_val</span> <span class="o">-</span> <span class="mf">0.05</span> <span class="o">*</span> <span class="n">prom</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prom</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                              <span class="n">ha</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s2">&quot;top&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mf">7.5</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">)</span>
+                    
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;pQ(t)&quot;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;t&quot;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_xscale</span><span class="p">(</span><span class="n">qplot_xscale</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="n">qplot_yscale</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">fontsize</span> <span class="o">=</span> <span class="mi">9</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Detected Q-minima with prominences&quot;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+            <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">return_ctrl_figs</span><span class="p">:</span>
+                <span class="n">ctrl_figures</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">fig</span><span class="p">,</span><span class="n">ax</span><span class="p">))</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    
+            
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">idx_minima</span><span class="p">:</span>
+            
+            <span class="n">ghostCheck</span> <span class="o">=</span> <span class="kc">False</span>
+            
+            <span class="n">t_ghost</span> <span class="o">=</span> <span class="n">i</span> <span class="o">*</span> <span class="n">dt</span>  <span class="c1"># time at which a potential ghost was found</span>
+            <span class="n">dur_ghost</span> <span class="o">=</span> <span class="n">pk_props</span><span class="p">[</span><span class="s2">&quot;widths&quot;</span><span class="p">][</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">idx_minima</span><span class="o">==</span><span class="n">i</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]]</span><span class="o">*</span><span class="n">dt</span> <span class="c1"># trapping time</span>
+            
+            <span class="n">qmin_xyz</span> <span class="o">=</span> <span class="n">trajectory</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="c1"># position of Q_minimum in phase space </span>
+            
+            <span class="c1"># KD-tree neighborhood query</span>
+            <span class="n">idcs_Ueps_qmin</span> <span class="o">=</span> <span class="n">kdtree</span><span class="o">.</span><span class="n">query_ball_point</span><span class="p">(</span><span class="n">qmin_xyz</span><span class="p">,</span> <span class="n">epsilon_gid</span><span class="p">)</span>
+            <span class="n">idcs_Ueps_qmin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">idcs_Ueps_qmin</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">))</span>
+            
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idcs_Ueps_qmin</span><span class="p">)</span><span class="o">&lt;</span><span class="mi">5</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;ghostID error: insuffienct number of points in Ueps!&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span><span class="p">(</span><span class="n">return_ctrl_figs</span><span class="p">):</span>    
+                    <span class="k">return</span> <span class="p">[]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="p">[],</span> <span class="n">ctrl_figures</span>
+
+            <span class="n">idcs_segment</span> <span class="o">=</span> <span class="n">trjSegment</span><span class="p">(</span><span class="n">idcs_Ueps_qmin</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span>
+
+            <span class="c1"># Check if trajectory leaves the epsilon environment</span>
+            <span class="n">leaves_eps_qmin_i</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">dists</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">trajectory</span><span class="p">[</span><span class="n">i</span><span class="p">:]</span> <span class="o">-</span> <span class="n">qmin_xyz</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">dists</span> <span class="o">&gt;</span> <span class="n">epsilon_gid</span><span class="p">):</span>
+                <span class="n">leaves_eps_qmin_i</span> <span class="o">=</span> <span class="kc">True</span>
+                
+            <span class="k">if</span> <span class="n">leaves_eps_qmin_i</span><span class="p">:</span>
+                <span class="c1"># Batch Jacobian + eigenvalue evaluation for segment</span>
+                <span class="n">pts_segment</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">trajectory</span><span class="p">[</span><span class="n">idcs_segment</span><span class="p">])</span>        <span class="c1"># JAX array</span>
+                <span class="n">J_batch</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">J_fun</span><span class="p">)(</span><span class="n">pts_segment</span><span class="p">)</span>                     <span class="c1"># batch Jacobians</span>
+                <span class="n">eigVals</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigvals</span><span class="p">)(</span><span class="n">J_batch</span><span class="p">)</span>            <span class="c1"># eigenvalues</span>
+                <span class="n">eigVals_real_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">eigVals</span><span class="p">))</span>                <span class="c1"># back to numpy for analysis</span>
+
+                <span class="k">if</span> <span class="n">eigval_NN_sorting</span><span class="p">:</span>
+                    <span class="n">eigVals_real</span> <span class="o">=</span> <span class="n">sort_NN</span><span class="p">(</span><span class="n">eigVals_real_</span><span class="o">.</span><span class="n">T</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">eigVals_real</span> <span class="o">=</span> <span class="n">eigVals_real_</span>
+                    
+                <span class="c1"># Determine eigenvalue crossings along the segment</span>
+                <span class="n">ev_signChanges</span> <span class="o">=</span> <span class="p">[</span><span class="n">sign_change</span><span class="p">(</span><span class="n">eigVals_real</span><span class="p">[:,</span> <span class="n">ii</span><span class="p">],</span><span class="n">ev_outlier_removal</span><span class="p">,</span><span class="n">ev_outlier_removal_ws</span><span class="p">,</span><span class="n">ev_outlier_removal_k</span><span class="p">,</span><span class="n">display_warnings</span><span class="o">=</span><span class="n">display_warnings</span><span class="p">)</span> <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">)]</span>
+                <span class="n">crossings</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">ev_signChanges</span><span class="p">)</span>
+                
+                <span class="c1"># determine eigenvalue slopes</span>
+                <span class="n">qualifyingSlopes</span> <span class="o">=</span> <span class="p">[]</span>
+                
+                <span class="k">if</span> <span class="n">ctrl_evplot</span><span class="p">:</span> <span class="n">r2s</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">):</span>
+                    <span class="c1"># Only consider eigenvalues with small median real part along segment</span>
+                    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">eigVals_real</span><span class="p">[:,</span> <span class="n">ii</span><span class="p">]))</span> <span class="o">&lt;</span> <span class="n">evLimit</span><span class="p">:</span>
+                        <span class="n">slope</span><span class="p">,</span> <span class="n">r2</span> <span class="o">=</span> <span class="n">slope_and_r2</span><span class="p">(</span><span class="n">eigVals_real</span><span class="p">[:,</span> <span class="n">ii</span><span class="p">],</span> <span class="n">dt</span><span class="p">,</span><span class="n">ev_outlier_removal</span><span class="p">,</span><span class="n">ev_outlier_removal_ws</span><span class="p">,</span><span class="n">ev_outlier_removal_k</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">ctrl_evplot</span><span class="p">:</span> <span class="n">r2s</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r2</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">((</span><span class="n">slope</span> <span class="o">&gt;</span> <span class="n">slopeLimits</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">slope</span> <span class="o">&lt;</span> <span class="n">slopeLimits</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">r2</span> <span class="o">&gt;=</span> <span class="mf">0.99</span><span class="p">)):</span>
+                            <span class="n">qualifyingSlopes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ii</span><span class="p">)</span>
+
+                <span class="c1"># Check for ghost</span>
+                <span class="k">if</span> <span class="n">crossings</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">qualifyingSlopes</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">ghostCheck</span> <span class="o">=</span> <span class="kc">True</span>
+                
+                <span class="k">if</span> <span class="n">ctrl_evplot</span><span class="p">:</span>
+                    <span class="n">n_eig</span> <span class="o">=</span> <span class="n">eigVals_real</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">n_eig</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">17</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="mf">2.54</span><span class="p">),</span> <span class="mi">17</span><span class="o">/</span><span class="p">(</span><span class="mi">4</span><span class="o">*</span><span class="mf">2.54</span><span class="p">)</span><span class="o">*</span><span class="n">n_eig</span><span class="p">),</span> <span class="n">sharex</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">n_eig</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span> <span class="n">axes</span> <span class="o">=</span> <span class="p">[</span><span class="n">axes</span><span class="p">]</span>  <span class="c1"># ensure axes is iterable</span>
+                    
+                    <span class="n">t_seg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">eigVals_real</span><span class="p">))</span> <span class="o">*</span> <span class="n">dt</span>
+                    
+                    <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">ax</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">axes</span><span class="p">):</span>
+                        <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">t_seg</span><span class="p">,</span> <span class="n">eigVals_real</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span> <span class="s1">&#39;-ok&#39;</span><span class="p">,</span>  <span class="n">markersize</span><span class="o">=</span><span class="mf">1.5</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.75</span><span class="p">)</span>
+                        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;λ</span><span class="si">{</span><span class="n">j</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+        
+                    <span class="n">axes</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Time along segment&#39;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">evLimit</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">qsl</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">qualifyingSlopes</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">qsl</span> <span class="o">=</span> <span class="s1">&#39;N/A&#39;</span>
+
+                    <span class="n">Q_mami</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">Q_ts</span><span class="p">[</span><span class="n">idcs_segment</span><span class="p">])</span><span class="o">/</span><span class="n">Q_ts</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+                    <span class="n">plt</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Eig.vals near Qmin at t=</span><span class="si">{</span><span class="n">t_ghost</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">, ghost: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">ghostCheck</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">, leaves Uɛ: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">leaves_eps_qmin_i</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">, Qmami: </span><span class="si">{</span><span class="n">Q_mami</span><span class="si">:</span><span class="s2">.1e</span><span class="si">}</span><span class="s2"> </span><span class="se">\n</span><span class="s2">&quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;sign changes λi: &quot;</span> <span class="o">+</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">ev_signChanges</span><span class="p">,</span> <span class="s1">&#39;T &#39;</span><span class="p">,</span> <span class="s1">&#39;F &#39;</span><span class="p">))</span><span class="o">+</span><span class="sa">f</span><span class="s2">&quot;, qualifying slopes: </span><span class="si">{</span><span class="n">qsl</span><span class="si">}</span><span class="s2">, &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;R²: </span><span class="si">{</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">ri</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">&#39;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">ri</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">r2s</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">9</span><span class="p">)</span>
+       
+                    <span class="n">ax</span><span class="o">.</span><span class="n">set_xscale</span><span class="p">(</span><span class="n">evplot_xscale</span><span class="p">)</span>
+                    <span class="n">ax</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="n">evplot_yscale</span><span class="p">)</span>
+                    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="n">return_ctrl_figs</span><span class="p">:</span>
+                        <span class="n">ctrl_figures</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">fig</span><span class="p">,</span><span class="n">axes</span><span class="p">))</span>
+                        <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">(</span><span class="n">fig</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+        
+                    
+                <span class="c1"># If ghost found, characterize its dimension and check if it has been found previously</span>
+                <span class="k">if</span> <span class="n">ghostCheck</span><span class="p">:</span>
+                    <span class="n">ghostTimes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">t_ghost</span><span class="p">)</span>
+                    <span class="n">gdim</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="n">crossings</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">qualifyingSlopes</span><span class="p">)])</span>
+
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ghostCoordinates</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="c1"># Calculate distances to all previously found ghosts</span>
+                        <span class="n">distances</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">g</span> <span class="o">-</span> <span class="n">trajectory</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">ghostCoordinates</span><span class="p">])</span>
+                    
+                        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">d</span> <span class="o">&lt;</span> <span class="n">delta_gid</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">distances</span><span class="p">):</span>  <span class="c1"># current ghost has not been found previously</span>
+                            <span class="n">ghostCoordinates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">trajectory</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                            <span class="n">ghost</span> <span class="o">=</span> <span class="p">{</span> 
+                                <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;G&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ghostCoordinates</span><span class="p">)),</span>  <span class="c1"># assign ID to the new ghost</span>
+                                <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">t_ghost</span><span class="p">,</span>
+                                <span class="s2">&quot;duration&quot;</span><span class="p">:</span> <span class="n">dur_ghost</span><span class="p">,</span>
+                                <span class="s2">&quot;position&quot;</span><span class="p">:</span> <span class="n">trajectory</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                                <span class="s2">&quot;dimension&quot;</span><span class="p">:</span> <span class="n">gdim</span><span class="p">,</span>
+                                <span class="s2">&quot;q-value&quot;</span><span class="p">:</span> <span class="n">Q_ts</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                                <span class="s2">&quot;crossing_eigenvalues&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ev_signChanges</span><span class="p">)</span><span class="o">==</span><span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span>
+                                <span class="s2">&quot;qualifying_slopes&quot;</span><span class="p">:</span><span class="n">qualifyingSlopes</span><span class="p">,</span>
+                                <span class="s2">&quot;eigenvalues_qmin&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">eigVals</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span>
+                                <span class="p">}</span>
+                        <span class="k">else</span><span class="p">:</span>  <span class="c1"># current ghost has already been found previously</span>
+                            <span class="n">gidx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">distances</span> <span class="o">&lt;</span> <span class="n">delta_gid</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+                            <span class="n">ghost</span> <span class="o">=</span> <span class="p">{</span>
+                                <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;G&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">gidx</span><span class="p">),</span>
+                                <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">t_ghost</span><span class="p">,</span>
+                                <span class="s2">&quot;duration&quot;</span><span class="p">:</span> <span class="n">dur_ghost</span><span class="p">,</span>
+                                <span class="s2">&quot;position&quot;</span><span class="p">:</span> <span class="n">trajectory</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                                <span class="s2">&quot;dimension&quot;</span><span class="p">:</span> <span class="n">gdim</span><span class="p">,</span>
+                                <span class="s2">&quot;q-value&quot;</span><span class="p">:</span> <span class="n">Q_ts</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                                <span class="s2">&quot;crossing_eigenvalues&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ev_signChanges</span><span class="p">)</span><span class="o">==</span><span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span>
+                                <span class="s2">&quot;qualifying_slopes&quot;</span><span class="p">:</span><span class="n">qualifyingSlopes</span><span class="p">,</span>
+                                <span class="s2">&quot;eigenvalues_qmin&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">eigVals</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span>
+                                <span class="p">}</span>
+                        <span class="n">ghostSeq</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ghost</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>  <span class="c1"># No ghost previously found yet</span>
+                        <span class="n">ghost</span> <span class="o">=</span> <span class="p">{</span>
+                            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;G&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ghostCoordinates</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span>
+                            <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">t_ghost</span><span class="p">,</span>
+                            <span class="s2">&quot;duration&quot;</span><span class="p">:</span> <span class="n">dur_ghost</span><span class="p">,</span>
+                            <span class="s2">&quot;position&quot;</span><span class="p">:</span> <span class="n">trajectory</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                            <span class="s2">&quot;dimension&quot;</span><span class="p">:</span> <span class="n">gdim</span><span class="p">,</span>
+                            <span class="s2">&quot;q-value&quot;</span><span class="p">:</span> <span class="n">Q_ts</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                            <span class="s2">&quot;crossing_eigenvalues&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">ev_signChanges</span><span class="p">)</span><span class="o">==</span><span class="kc">True</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span>
+                            <span class="s2">&quot;qualifying_slopes&quot;</span><span class="p">:</span><span class="n">qualifyingSlopes</span><span class="p">,</span>
+                            <span class="s2">&quot;eigenvalues_qmin&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">eigVals</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="p">:])</span>
+                            <span class="p">}</span>
+                        <span class="n">ghostSeq</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ghost</span><span class="p">)</span>
+                        <span class="n">ghostCoordinates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">trajectory</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">display_warnings</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;GhostID: Trajectory does not leave U_eps - stopping ghostID.&quot;</span><span class="p">)</span>
+                <span class="k">break</span>
+
+
+        <span class="c1">############# STEP 2 - identify oscillatory transients #############################</span>
+        <span class="n">oscSeq</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">oscTimes</span> <span class="o">=</span> <span class="p">[]</span>
+                             
+        <span class="c1"># Merge transient state lists</span>
+        <span class="n">allTimes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">ghostTimes</span> <span class="o">+</span> <span class="n">oscTimes</span><span class="p">)</span>
+        <span class="n">allTimes</span><span class="o">.</span><span class="n">sort</span><span class="p">()</span>
+        <span class="n">ghostTimes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">ghostTimes</span><span class="p">)</span>
+        <span class="n">oscTimes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">oscTimes</span><span class="p">)</span>
+        
+        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">allTimes</span><span class="p">:</span>
+            <span class="n">i_t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">ghostTimes</span> <span class="o">==</span> <span class="n">t</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">i_t</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">fullTransientSeq</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ghostSeq</span><span class="p">[</span><span class="n">i_t</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">i_t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">oscTimes</span> <span class="o">==</span> <span class="n">t</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">fullTransientSeq</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">oscSeq</span><span class="p">[</span><span class="n">i_t</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+
+    <span class="k">if</span> <span class="ow">not</span><span class="p">(</span><span class="n">return_ctrl_figs</span><span class="p">):</span>    
+        <span class="k">return</span> <span class="n">fullTransientSeq</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">fullTransientSeq</span><span class="p">,</span> <span class="n">ctrl_figures</span></div>
+
+
+<div class="viewcode-block" id="ghostID_phaseSpaceSample">
+<a class="viewcode-back" href="../../api/PyGhostID.html#PyGhostID.ghostID_phaseSpaceSample">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ghostID_phaseSpaceSample</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">model_params</span><span class="p">,</span> <span class="n">t_start</span><span class="p">,</span> <span class="n">t_end</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">state_ranges</span><span class="p">,</span>
+                             <span class="n">n_samples</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;RK45&#39;</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">1.e-3</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1.e-6</span><span class="p">,</span> <span class="n">n_workers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Identify ghost states across a region of phase space by simulating multiple</span>
+<span class="sd">    trajectories from initial conditions drawn by Latin-hypercube sampling and</span>
+<span class="sd">    evaluating each trajectory with ghostID.</span>
+
+<span class="sd">    Implements an adaptive parallel-processing routine: uses threads when run</span>
+<span class="sd">    inside Jupyter or Spyder (avoiding pickling issues) and processes when run</span>
+<span class="sd">    as a standalone script for full CPU utilisation.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    model : callable</span>
+<span class="sd">        Python function describing the system dynamics.</span>
+<span class="sd">    model_params : list or array-like</span>
+<span class="sd">        Parameters passed as arguments to model.</span>
+<span class="sd">    t_start : float</span>
+<span class="sd">        Start time of each simulated trajectory.</span>
+<span class="sd">    t_end : float</span>
+<span class="sd">        End time of each simulated trajectory.</span>
+<span class="sd">    dt : float</span>
+<span class="sd">        Step-size for numerical integration.</span>
+<span class="sd">    state_ranges : list of tuple</span>
+<span class="sd">        List of n tuples (one per dimension of the system), each specifying the</span>
+<span class="sd">        (lower, upper) boundaries of the phase space region to be sampled along</span>
+<span class="sd">        that coordinate. For example, for a 2D system:</span>
+<span class="sd">        [(x_min, x_max), (y_min, y_max)].</span>
+<span class="sd">    n_samples : int, optional</span>
+<span class="sd">        Number of trajectories to simulate and analyse for ghost states.</span>
+<span class="sd">    method : str, optional</span>
+<span class="sd">        Integration method passed to scipy.integrate.solve_ivp. Default is &#39;RK45&#39;.</span>
+<span class="sd">    rtol : float, optional</span>
+<span class="sd">        Relative tolerance for the numerical integrator. Default is 1e-3.</span>
+<span class="sd">    atol : float, optional</span>
+<span class="sd">        Absolute tolerance for the numerical integrator. Default is 1e-6.</span>
+<span class="sd">    n_workers : int or None, optional</span>
+<span class="sd">        Number of CPU cores used for parallel processing. If None, the number</span>
+<span class="sd">        of workers is chosen automatically. Default is None.</span>
+<span class="sd">    **kwargs</span>
+<span class="sd">        All keyword arguments accepted by ghostID are also accepted here (see</span>
+<span class="sd">        ghostID documentation). Note that control plots are unlikely to render</span>
+<span class="sd">        correctly when parallel processing is enabled.</span>
+
+<span class="sd">        Additional kwargs specific to ghostID_phaseSpaceSample:</span>
+
+<span class="sd">        delta_unify : float</span>
+<span class="sd">            Distance in phase space above which two ghosts identified across</span>
+<span class="sd">            different trajectories in the phase space sample are considered</span>
+<span class="sd">            distinct and assigned different identifiers. Analogous to delta_gid</span>
+<span class="sd">            in ghostID, but applied globally across all trajectories rather than</span>
+<span class="sd">            within a single trajectory. Default is 0.1.</span>
+<span class="sd">        seed : int or None</span>
+<span class="sd">            Random seed for the Latin-hypercube sampler. Setting a specific value</span>
+<span class="sd">            ensures exact reproducibility of the phase space sample. Default is</span>
+<span class="sd">            None (non-reproducible random sample).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    results : list</span>
+<span class="sd">        List containing a ghostSeq (see ghostID documentation) for each</span>
+<span class="sd">        simulated trajectory, allowing ghost states to be retrieved and compared</span>
+<span class="sd">        across the sampled region of phase space.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="c1"># Parse and validate kwargs</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">parse_kwargs</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="n">display_warnings</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;display_warnings&#39;</span><span class="p">]</span>
+    
+    <span class="c1"># Extract parameters from config</span>
+    <span class="n">delta_gid</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;delta_gid&#39;</span><span class="p">]</span>
+    <span class="n">peak_kwargs</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;peak_kwargs&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s2">&quot;width&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">peak_kwargs</span><span class="p">:</span>  
+        <span class="n">peak_kwargs</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">*</span> <span class="n">dt</span>   <span class="c1"># default if not supplied</span>
+    <span class="n">batchModel</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;batchModel&#39;</span><span class="p">]</span>
+    <span class="n">eigval_NN_sorting</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;eigval_NN_sorting&#39;</span><span class="p">]</span>
+    <span class="n">ev_outlier_removal_ws</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ev_outlier_removal_ws&#39;</span><span class="p">]</span>
+    <span class="n">ev_outlier_removal_k</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ev_outlier_removal_k&#39;</span><span class="p">]</span>
+    <span class="n">evLimit</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;evLimit&#39;</span><span class="p">]</span>
+    <span class="n">slopeLimits</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;slopeLimits&#39;</span><span class="p">]</span>
+    <span class="n">epsilon_gid</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;epsilon_gid&#39;</span><span class="p">]</span>
+    <span class="n">epsilon_unify</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;epsilon_unify&#39;</span><span class="p">]</span> <span class="c1"># rename to delta_unify</span>
+    <span class="n">seed</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;seed&#39;</span><span class="p">]</span>
+
+    <span class="c1"># Plotting control settings</span>
+    <span class="n">return_ctrl_figs</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;return_ctrl_figs&#39;</span><span class="p">]</span>
+    <span class="n">ctrlOutputs</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ctrlOutputs&quot;</span><span class="p">,</span> <span class="p">{})</span>
+
+    <span class="k">if</span> <span class="n">n_workers</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">n_workers</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="ow">or</span> <span class="mi">4</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">npts</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">t_end</span> <span class="o">/</span> <span class="n">dt</span><span class="p">)</span>
+    <span class="n">t_eval</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t_end</span><span class="p">,</span> <span class="n">npts</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">ICs</span> <span class="o">=</span> <span class="n">phaseSpaceLHS</span><span class="p">(</span><span class="n">state_ranges</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">seed</span><span class="p">)</span>
+    
+    <span class="c1"># ---- Choose backend automatically ----</span>
+    <span class="n">in_spyder_or_jupyter</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">&quot;SPYDER&quot;</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span> <span class="ow">or</span>
+        <span class="s2">&quot;spyder_kernels&quot;</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span> <span class="ow">or</span>
+        <span class="s2">&quot;ipykernel&quot;</span> <span class="ow">in</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span>
+    <span class="p">)</span>
+    <span class="n">Executor</span> <span class="o">=</span> <span class="n">ThreadPoolExecutor</span> <span class="k">if</span> <span class="n">in_spyder_or_jupyter</span> <span class="k">else</span> <span class="n">ProcessPoolExecutor</span>
+    <span class="n">mode</span> <span class="o">=</span> <span class="s2">&quot;threads&quot;</span> <span class="k">if</span> <span class="n">Executor</span> <span class="ow">is</span> <span class="n">ThreadPoolExecutor</span> <span class="k">else</span> <span class="s2">&quot;processes&quot;</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[ghostID_phaseSpaceSample] Running with </span><span class="si">{</span><span class="n">mode</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">n_workers</span><span class="si">}</span><span class="s2"> workers)&quot;</span><span class="p">)</span>
+
+    <span class="c1"># ---- Define worker ----</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">process_ic</span><span class="p">(</span><span class="n">ic</span><span class="p">):</span>
+        <span class="n">sol</span> <span class="o">=</span> <span class="n">solve_ivp</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="p">(</span><span class="n">t_start</span><span class="p">,</span> <span class="n">t_end</span><span class="p">),</span> <span class="n">ic</span><span class="p">,</span>
+                        <span class="n">t_eval</span><span class="o">=</span><span class="n">t_eval</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">model_params</span><span class="p">,),</span>
+                        <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">)</span>
+        <span class="n">ghostSeq_</span> <span class="o">=</span> <span class="n">ghostID</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">model_params</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">sol</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+                           <span class="n">epsilon_gid</span><span class="p">,</span> <span class="n">delta_gid</span><span class="o">=</span><span class="n">delta_gid</span><span class="p">,</span><span class="n">peak_kwargs</span><span class="o">=</span><span class="n">peak_kwargs</span><span class="p">,</span>
+                           <span class="n">batchModel</span><span class="o">=</span><span class="n">batchModel</span><span class="p">,</span><span class="n">return_ctrl_figs</span><span class="o">=</span><span class="n">return_ctrl_figs</span><span class="p">,</span><span class="n">ctrlOutputs</span><span class="o">=</span><span class="n">ctrlOutputs</span><span class="p">,</span>
+                           <span class="n">evLimit</span><span class="o">=</span><span class="n">evLimit</span><span class="p">,</span><span class="n">slopeLimits</span><span class="o">=</span><span class="n">slopeLimits</span><span class="p">,</span><span class="n">eigval_NN_sorting</span><span class="o">=</span><span class="n">eigval_NN_sorting</span><span class="p">,</span>
+                           <span class="n">ev_outlier_removal_ws</span><span class="o">=</span><span class="n">ev_outlier_removal_ws</span><span class="p">,</span><span class="n">ev_outlier_removal_k</span><span class="o">=</span><span class="n">ev_outlier_removal_k</span><span class="p">,</span>
+                           <span class="n">display_warnings</span><span class="o">=</span><span class="n">display_warnings</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">return_ctrl_figs</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+                <span class="n">ghostSeq</span> <span class="o">=</span> <span class="n">ghostSeq_</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ghostSeq</span><span class="p">,</span> <span class="n">ctrl_figures</span> <span class="o">=</span> <span class="n">ghostSeq_</span> <span class="c1">#ignore ctrl_figures for now</span>
+        <span class="k">return</span> <span class="n">ghostSeq</span> <span class="k">if</span> <span class="n">ghostSeq</span> <span class="k">else</span> <span class="kc">None</span>
+
+    <span class="c1"># ---- Parallel execution ----</span>
+    <span class="n">ghostSeqs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">with</span> <span class="n">Executor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="n">n_workers</span><span class="p">)</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+        <span class="n">futures</span> <span class="o">=</span> <span class="p">[</span><span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">process_ic</span><span class="p">,</span> <span class="n">ic</span><span class="p">)</span> <span class="k">for</span> <span class="n">ic</span> <span class="ow">in</span> <span class="n">ICs</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">as_completed</span><span class="p">(</span><span class="n">futures</span><span class="p">),</span> <span class="n">total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">futures</span><span class="p">),</span>
+                      <span class="n">desc</span><span class="o">=</span><span class="s2">&quot;Processing ICs&quot;</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;IC&quot;</span><span class="p">):</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">res</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">ghostSeqs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+
+    <span class="c1"># ---- Unify results ----</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ghostSeqs</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">ghostSeqs_unified</span> <span class="o">=</span> <span class="n">unify_IDs</span><span class="p">(</span><span class="n">ghostSeqs</span><span class="p">,</span> <span class="n">epsilon_unify</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ghostSeqs_unified</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">display_warnings</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;ghostID_phaseSpaceSample: No ghosts found in any trajectory.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[]</span></div>
+
+
+<div class="viewcode-block" id="make_batch_model">
+<a class="viewcode-back" href="../../api/PyGhostID.html#PyGhostID.make_batch_model">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">make_batch_model</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wrap a single-point model into a batch version using vmap.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    model : callable</span>
+<span class="sd">        Function (t, z, params) -&gt; dz/dt.</span>
+<span class="sd">    params : list or array-like</span>
+<span class="sd">        Model parameters (passed unchanged).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    batched : callable</span>
+<span class="sd">        Function (Zs, params) -&gt; dZs/dt for batch input, where Zs has shape</span>
+<span class="sd">        (num_points, n).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">single</span><span class="p">(</span><span class="n">z</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">model</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>   <span class="c1"># ignore t (or pass if needed)</span>
+    
+    <span class="n">batched</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="n">single</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">batched</span></div>
+
+
+<div class="viewcode-block" id="find_local_Qminimum">
+<a class="viewcode-back" href="../../api/PyGhostID.html#PyGhostID.find_local_Qminimum">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">find_local_Qminimum</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">x0</span><span class="p">,</span> <span class="n">model_params</span><span class="p">,</span> <span class="n">delta</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">global_method</span><span class="o">=</span><span class="s2">&quot;lhs&quot;</span><span class="p">,</span> <span class="n">local_method</span><span class="o">=</span><span class="s2">&quot;L-BFGS-B&quot;</span><span class="p">,</span>
+    <span class="n">global_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">local_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Search for a Q-minimum within a region of radius delta around a given point</span>
+<span class="sd">    x0 in phase space, where Q(x) = 0.5 * ||F(x)||^2 and F is the vector field</span>
+<span class="sd">    defined by model. The search combines a global strategy (either sampling or</span>
+<span class="sd">    a global optimisation algorithm) with an optional subsequent local</span>
+<span class="sd">    optimisation step.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    model : callable</span>
+<span class="sd">        Python function describing the system dynamics.</span>
+<span class="sd">    x0 : array-like</span>
+<span class="sd">        Centre of the search region in phase space. The Q-minimum is sought</span>
+<span class="sd">        within a ball of radius delta around this point.</span>
+<span class="sd">    model_params : list or array-like</span>
+<span class="sd">        Parameters passed as arguments to model.</span>
+<span class="sd">    delta : float</span>
+<span class="sd">        Radius of the region around x0 in which to search for a Q-minimum.</span>
+<span class="sd">    global_method : str, optional</span>
+<span class="sd">        Strategy used for the global search stage. Options are:</span>
+
+<span class="sd">        &#39;lhs&#39; (default)</span>
+<span class="sd">            Draw a Latin-hypercube sample from the delta-ball around x0,</span>
+<span class="sd">            evaluate Q at each sample point, and pass the k_seeds points with</span>
+<span class="sd">            the lowest Q-values to the local optimiser as starting points.</span>
+<span class="sd">            Controlled via global_options (see below).</span>
+<span class="sd">        &#39;differential_evolution&#39;</span>
+<span class="sd">            Use scipy.optimize.differential_evolution to search for a</span>
+<span class="sd">            Q-minimum within the delta-ball.</span>
+<span class="sd">        &#39;dual_annealing&#39;</span>
+<span class="sd">            Use scipy.optimize.dual_annealing to search for a Q-minimum</span>
+<span class="sd">            within the delta-ball.</span>
+<span class="sd">        &#39;basin_hopping&#39;</span>
+<span class="sd">            Use scipy.optimize.basin_hopping to search for a Q-minimum</span>
+<span class="sd">            within the delta-ball.</span>
+
+<span class="sd">    local_method : str, optional</span>
+<span class="sd">        Local optimisation method applied after the global search stage.</span>
+<span class="sd">        Accepts any method available in scipy.optimize.minimize.</span>
+<span class="sd">        Default is &#39;L-BFGS-B&#39;.</span>
+<span class="sd">    global_options : dict or None, optional</span>
+<span class="sd">        Options controlling the global search stage. For the scipy.optimize</span>
+<span class="sd">        global methods (&#39;differential_evolution&#39;, &#39;dual_annealing&#39;,</span>
+<span class="sd">        &#39;basin_hopping&#39;), any keyword argument accepted by the corresponding</span>
+<span class="sd">        scipy.optimize function may be provided. For global_method=&#39;lhs&#39;,</span>
+<span class="sd">        the following keys are recognised:</span>
+
+<span class="sd">        n_samples : int or None</span>
+<span class="sd">            Size of the Latin-hypercube sample. If None, chosen automatically</span>
+<span class="sd">            as min(2000, max(200, 20 * dim)), where dim is the dimension of</span>
+<span class="sd">            the model.</span>
+<span class="sd">        k_seeds : int or None</span>
+<span class="sd">            Number of lowest-Q sample points passed to the local optimiser as</span>
+<span class="sd">            starting points. If None, chosen automatically as</span>
+<span class="sd">            min(5, max(2, int(sqrt(dim)))), where dim is the dimension of</span>
+<span class="sd">            the model.</span>
+<span class="sd">        seed : int or None</span>
+<span class="sd">            Random seed for the Latin-hypercube sampler. Setting a specific</span>
+<span class="sd">            value ensures exact reproducibility of the sample. Default is None.</span>
+
+<span class="sd">        Default for global_options is None (all sub-options use their defaults).</span>
+<span class="sd">    local_options : dict or None, optional</span>
+<span class="sd">        Options passed directly to scipy.optimize.minimize for the local</span>
+<span class="sd">        optimisation step. Accepts any keyword argument recognised by the</span>
+<span class="sd">        chosen local_method. Default is None.</span>
+<span class="sd">    verbose : bool, optional</span>
+<span class="sd">        If True, enables control outputs during the search. Default is False.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    result : OptimizeResult or similar</span>
+<span class="sd">        The identified Q-minimum within the delta-ball around x0.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">F</span> <span class="o">=</span> <span class="n">model</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">model_params</span>
+
+    <span class="n">x0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">dim</span> <span class="o">=</span> <span class="n">x0</span><span class="o">.</span><span class="n">size</span>
+    <span class="n">bounds</span> <span class="o">=</span> <span class="p">[(</span><span class="n">x0</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">delta</span><span class="p">,</span> <span class="n">x0</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">+</span> <span class="n">delta</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dim</span><span class="p">)]</span>
+
+    <span class="n">global_options</span> <span class="o">=</span> <span class="p">{}</span> <span class="k">if</span> <span class="n">global_options</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">dict</span><span class="p">(</span><span class="n">global_options</span><span class="p">)</span>
+    <span class="n">local_options</span> <span class="o">=</span> <span class="p">{}</span> <span class="k">if</span> <span class="n">local_options</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">dict</span><span class="p">(</span><span class="n">local_options</span><span class="p">)</span>
+
+    <span class="c1"># --------------------------------------------------</span>
+    <span class="c1"># Define Q and grad Q</span>
+    <span class="c1"># --------------------------------------------------</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">Q_func</span><span class="p">(</span><span class="n">x</span><span class="p">):</span> 
+        <span class="n">z</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">F</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span> <span class="c1">#SHOULD THERE NOT BE A SQRT HERE???</span>
+
+    <span class="n">grad_Q</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span><span class="k">lambda</span> <span class="n">z</span><span class="p">:</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">F</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">grad_Q_np</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">grad_Q</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
+
+    <span class="c1"># --------------------------------------------------</span>
+    <span class="c1"># Global search</span>
+    <span class="c1"># --------------------------------------------------</span>
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[Q-min] Global search method: </span><span class="si">{</span><span class="n">global_method</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">candidate_points</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># ---- LHS ------------------------------------------------</span>
+    <span class="k">if</span> <span class="n">global_method</span> <span class="o">==</span> <span class="s2">&quot;lhs&quot;</span><span class="p">:</span>
+         <span class="c1"># Compute dimension-aware defaults if None</span>
+        <span class="n">n_samples</span> <span class="o">=</span> <span class="n">global_options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;n_samples&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">n_samples</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">n_samples</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">2000</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span> <span class="mi">20</span> <span class="o">*</span> <span class="n">dim</span><span class="p">))</span>
+
+        <span class="n">k_seeds</span> <span class="o">=</span> <span class="n">global_options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;k_seeds&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">k_seeds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">k_seeds</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">dim</span><span class="p">))))</span>
+            
+        <span class="n">seed</span> <span class="o">=</span> <span class="n">global_options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;seed&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;[Q-min] LHS: n_samples=</span><span class="si">{</span><span class="n">n_samples</span><span class="si">}</span><span class="s2">, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;k_seeds=</span><span class="si">{</span><span class="n">k_seeds</span><span class="si">}</span><span class="s2">, seed=</span><span class="si">{</span><span class="n">seed</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">sampler</span> <span class="o">=</span> <span class="n">qmc</span><span class="o">.</span><span class="n">LatinHypercube</span><span class="p">(</span><span class="n">d</span><span class="o">=</span><span class="n">dim</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
+        <span class="n">samples</span> <span class="o">=</span> <span class="n">sampler</span><span class="o">.</span><span class="n">random</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">n_samples</span><span class="p">)</span>
+        <span class="n">points</span> <span class="o">=</span> <span class="n">qmc</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span>
+            <span class="n">samples</span><span class="p">,</span>
+            <span class="p">[</span><span class="n">b</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bounds</span><span class="p">],</span>
+            <span class="p">[</span><span class="n">b</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">bounds</span><span class="p">],</span>
+        <span class="p">)</span>
+
+        <span class="n">Q_vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">Q_func</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">points</span><span class="p">])</span>
+        <span class="n">best_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">Q_vals</span><span class="p">)[:</span><span class="n">k_seeds</span><span class="p">]</span>
+        <span class="n">candidate_points</span> <span class="o">=</span> <span class="n">points</span><span class="p">[</span><span class="n">best_idx</span><span class="p">]</span>
+
+    <span class="c1"># ---- Differential Evolution -----------------------------</span>
+    <span class="k">elif</span> <span class="n">global_method</span> <span class="o">==</span> <span class="s2">&quot;differential_evolution&quot;</span><span class="p">:</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">differential_evolution</span><span class="p">(</span>
+            <span class="n">Q_func</span><span class="p">,</span>
+            <span class="n">bounds</span><span class="p">,</span>
+            <span class="n">disp</span><span class="o">=</span><span class="n">verbose</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">global_options</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">candidate_points</span> <span class="o">=</span> <span class="p">[</span><span class="n">res</span><span class="o">.</span><span class="n">x</span><span class="p">]</span>
+
+    <span class="c1"># ---- Dual Annealing -------------------------------------</span>
+    <span class="k">elif</span> <span class="n">global_method</span> <span class="o">==</span> <span class="s2">&quot;dual_annealing&quot;</span><span class="p">:</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">dual_annealing</span><span class="p">(</span>
+            <span class="n">Q_func</span><span class="p">,</span>
+            <span class="n">bounds</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">global_options</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">candidate_points</span> <span class="o">=</span> <span class="p">[</span><span class="n">res</span><span class="o">.</span><span class="n">x</span><span class="p">]</span>
+
+    <span class="c1"># ---- Basin Hopping --------------------------------------</span>
+    <span class="k">elif</span> <span class="n">global_method</span> <span class="o">==</span> <span class="s2">&quot;basin_hopping&quot;</span><span class="p">:</span>
+        <span class="n">minimizer_kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;method&quot;</span><span class="p">:</span> <span class="n">local_method</span><span class="p">,</span>
+            <span class="s2">&quot;jac&quot;</span><span class="p">:</span> <span class="n">grad_Q_np</span><span class="p">,</span>
+            <span class="s2">&quot;bounds&quot;</span><span class="p">:</span> <span class="n">bounds</span> <span class="k">if</span> <span class="n">local_method</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;L-BFGS-B&quot;</span><span class="p">,</span> <span class="s2">&quot;TNC&quot;</span><span class="p">,</span> <span class="s2">&quot;SLSQP&quot;</span><span class="p">}</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">basinhopping</span><span class="p">(</span>
+            <span class="n">Q_func</span><span class="p">,</span>
+            <span class="n">x0</span><span class="p">,</span>
+            <span class="n">minimizer_kwargs</span><span class="o">=</span><span class="n">minimizer_kwargs</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">global_options</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">candidate_points</span> <span class="o">=</span> <span class="p">[</span><span class="n">res</span><span class="o">.</span><span class="n">x</span><span class="p">]</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown global_method &#39;</span><span class="si">{</span><span class="n">global_method</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+    <span class="c1"># --------------------------------------------------</span>
+    <span class="c1"># Local refinement</span>
+    <span class="c1"># --------------------------------------------------</span>
+    <span class="k">if</span> <span class="n">local_method</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">Q_vals</span> <span class="o">=</span> <span class="p">[</span><span class="n">Q_func</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">candidate_points</span><span class="p">]</span>
+        <span class="n">best</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">Q_vals</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">candidate_points</span><span class="p">[</span><span class="n">best</span><span class="p">],</span> <span class="n">Q_vals</span><span class="p">[</span><span class="n">best</span><span class="p">],</span> <span class="kc">None</span>
+
+    <span class="n">results_local</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">x_start</span> <span class="ow">in</span> <span class="n">candidate_points</span><span class="p">:</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">minimize</span><span class="p">(</span>
+            <span class="n">Q_func</span><span class="p">,</span>
+            <span class="n">x_start</span><span class="p">,</span>
+            <span class="n">jac</span><span class="o">=</span><span class="n">grad_Q_np</span><span class="p">,</span>
+            <span class="n">method</span><span class="o">=</span><span class="n">local_method</span><span class="p">,</span>
+            <span class="n">bounds</span><span class="o">=</span><span class="n">bounds</span> <span class="k">if</span> <span class="n">local_method</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;L-BFGS-B&quot;</span><span class="p">,</span> <span class="s2">&quot;TNC&quot;</span><span class="p">,</span> <span class="s2">&quot;SLSQP&quot;</span><span class="p">}</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">options</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;disp&quot;</span><span class="p">:</span> <span class="n">verbose</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">local_options</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+        <span class="n">results_local</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+
+    <span class="n">best_res</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">results_local</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">r</span><span class="p">:</span> <span class="n">r</span><span class="o">.</span><span class="n">fun</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[Q-min] Final Q = </span><span class="si">{</span><span class="n">best_res</span><span class="o">.</span><span class="n">fun</span><span class="si">:</span><span class="s2">.3e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[Q-min] x = </span><span class="si">{</span><span class="n">best_res</span><span class="o">.</span><span class="n">x</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">best_res</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">best_res</span><span class="o">.</span><span class="n">fun</span><span class="p">,</span> <span class="n">best_res</span></div>
+
+
+<div class="viewcode-block" id="qOnGrid">
+<a class="viewcode-back" href="../../api/PyGhostID.html#PyGhostID.qOnGrid">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">qOnGrid</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">model_params</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">n_points</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">ranges</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">overrides</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">indexing</span><span class="o">=</span><span class="s2">&quot;ij&quot;</span><span class="p">,</span> <span class="n">jit</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span> 
+
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Evaluate Q(x) = 0.5 * ||F(x)||^2 on a phase space grid, where F is the</span>
+<span class="sd">    vector field defined by the model.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    model : callable</span>
+<span class="sd">        Python function describing the system dynamics.</span>
+<span class="sd">    model_params : list or array-like</span>
+<span class="sd">        Parameters passed as arguments to model.</span>
+<span class="sd">    coords : list of 1D array-like or None, optional</span>
+<span class="sd">        Explicit phase space grid on which to evaluate Q-values, provided as a</span>
+<span class="sd">        list of 1D arrays (one per dimension). If None, the grid is constructed</span>
+<span class="sd">        automatically using n_points, ranges, and overrides (see below).</span>
+<span class="sd">        Default is None.</span>
+<span class="sd">    n_points : int or list of int, optional</span>
+<span class="sd">        Number of grid points along each dimension. A single integer applies</span>
+<span class="sd">        the same value to all dimensions; a list of integers sets each</span>
+<span class="sd">        dimension individually. Ignored if coords is provided. Default is 50.</span>
+<span class="sd">    ranges : tuple or list of tuple, optional</span>
+<span class="sd">        Bounds of the grid along each dimension, given as a</span>
+<span class="sd">        single (lower, upper) tuple applied to all dimensions, or a list of</span>
+<span class="sd">        such tuples to set each dimension individually. Ignored if coords is</span>
+<span class="sd">        provided. Default is (-2, 2).</span>
+<span class="sd">    overrides : dict or None, optional</span>
+<span class="sd">        Dictionary for overriding n_points and/or ranges for specific</span>
+<span class="sd">        individual axes without affecting the others. Keys are axis indices</span>
+<span class="sd">        (integers) and values are dictionaries with keys &#39;n&#39; (int) and/or</span>
+<span class="sd">        &#39;range&#39; (tuple). For example, to set axis 1 to 100 points over</span>
+<span class="sd">        (-5.0, 5.0):  {1: {&#39;n&#39;: 100, &#39;range&#39;: (-5.0, 5.0)}}. Ignored if</span>
+<span class="sd">        coords is provided. Default is None.</span>
+<span class="sd">    indexing : str, optional</span>
+<span class="sd">        Indexing convention passed to jax.numpy.meshgrid. Default is &#39;ij&#39;</span>
+<span class="sd">        (matrix-style indexing, where the first index varies along rows).</span>
+<span class="sd">    jit : bool, optional</span>
+<span class="sd">        If True, enables JAX just-in-time (JIT) compilation to speed up</span>
+<span class="sd">        evaluation of Q on the grid. Default is False.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Q_grid : array-like</span>
+<span class="sd">        Array of Q-values evaluated at each point of the phase space grid,</span>
+<span class="sd">        with shape determined by n_points and the number of dimensions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">coords</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+
+        <span class="n">test</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">jnp</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">model_params</span><span class="p">)</span>
+        <span class="n">dim</span> <span class="o">=</span> <span class="n">test</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">ranges</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ranges</span> <span class="o">=</span> <span class="p">[(</span><span class="o">-</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">)]</span><span class="o">*</span><span class="n">dim</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ranges</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span><span class="nb">float</span><span class="p">)):</span>
+            <span class="n">ranges</span> <span class="o">=</span> <span class="p">[</span><span class="n">ranges</span><span class="p">]</span><span class="o">*</span><span class="n">dim</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n_points</span><span class="p">,</span><span class="nb">int</span><span class="p">):</span>
+            <span class="n">n_points</span> <span class="o">=</span> <span class="p">[</span><span class="n">n_points</span><span class="p">]</span><span class="o">*</span><span class="n">dim</span>
+
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dim</span><span class="p">):</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="n">n_points</span><span class="p">[</span><span class="n">d</span><span class="p">]</span> <span class="k">if</span> <span class="n">d</span><span class="o">&lt;</span><span class="nb">len</span><span class="p">(</span><span class="n">n_points</span><span class="p">)</span> <span class="k">else</span> <span class="n">n_points</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">ranges</span><span class="p">[</span><span class="n">d</span><span class="p">]</span> <span class="k">if</span> <span class="n">d</span><span class="o">&lt;</span><span class="nb">len</span><span class="p">(</span><span class="n">ranges</span><span class="p">)</span> <span class="k">else</span> <span class="n">ranges</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">overrides</span> <span class="ow">and</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">overrides</span><span class="p">:</span>
+                <span class="k">if</span> <span class="s2">&quot;n&quot;</span> <span class="ow">in</span> <span class="n">overrides</span><span class="p">[</span><span class="n">d</span><span class="p">]:</span>
+                    <span class="n">n</span> <span class="o">=</span> <span class="n">overrides</span><span class="p">[</span><span class="n">d</span><span class="p">][</span><span class="s2">&quot;n&quot;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="s2">&quot;range&quot;</span> <span class="ow">in</span> <span class="n">overrides</span><span class="p">[</span><span class="n">d</span><span class="p">]:</span>
+                    <span class="n">r</span> <span class="o">=</span> <span class="n">overrides</span><span class="p">[</span><span class="n">d</span><span class="p">][</span><span class="s2">&quot;range&quot;</span><span class="p">]</span>
+            <span class="n">coords</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">jnp</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">r</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">n</span><span class="p">))</span>
+
+    <span class="n">meshes</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="o">*</span><span class="n">coords</span><span class="p">,</span> <span class="n">indexing</span><span class="o">=</span><span class="n">indexing</span><span class="p">)</span>
+    <span class="n">grid_points</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">meshes</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">core</span><span class="p">(</span><span class="n">grid_points</span><span class="p">):</span>
+        <span class="n">flat_pts</span> <span class="o">=</span> <span class="n">grid_points</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">grid_points</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">F_vmapped</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">vmap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">pt</span><span class="p">:</span> <span class="n">model</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">pt</span><span class="p">,</span> <span class="n">model_params</span><span class="p">))</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="n">F_vmapped</span><span class="p">(</span><span class="n">flat_pts</span><span class="p">)</span>
+        <span class="n">Q_flat</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">jnp</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">values</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">Q_flat</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">grid_points</span><span class="o">.</span><span class="n">shape</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="n">core</span> <span class="o">=</span> <span class="n">jax</span><span class="o">.</span><span class="n">jit</span><span class="p">(</span><span class="n">core</span><span class="p">)</span> <span class="k">if</span> <span class="n">jit</span> <span class="k">else</span> <span class="n">core</span>
+    <span class="k">return</span> <span class="n">core</span><span class="p">(</span><span class="n">grid_points</span><span class="p">),</span> <span class="n">grid_points</span></div>
+
+
+<div class="viewcode-block" id="track_ghost_branch">
+<a class="viewcode-back" href="../../api/PyGhostID.html#PyGhostID.track_ghost_branch">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">track_ghost_branch</span><span class="p">(</span><span class="n">ghost</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">model_params</span><span class="p">,</span> <span class="n">par_nr</span><span class="p">,</span> <span class="n">par_steps</span><span class="p">,</span> <span class="n">dpar</span><span class="p">,</span> <span class="n">t_end</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">delta</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">icStep</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;first&quot;</span><span class="p">,</span>
+                             <span class="n">epsilon_gid</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span><span class="n">solve_ivp_method</span><span class="o">=</span><span class="s1">&#39;RK45&#39;</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">1.e-3</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">1.e-6</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Track a ghost state across a parameter sweep by iteratively updating the parameter</span>
+<span class="sd">    and re-identifying the ghost at each step.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ghost : dict</span>
+<span class="sd">        Ghost to be tracked, identified either by &#39;ghostID&#39; or &#39;ghostID_phaseSpaceSample&#39;.</span>
+<span class="sd">    model : callable</span>
+<span class="sd">        Python function describing the system dynamics.</span>
+<span class="sd">    model_params : list or array-like</span>
+<span class="sd">        Parameters for the model function.</span>
+<span class="sd">    par_nr : int</span>
+<span class="sd">        Index of the parameter in model_params to be varied during the sweep.</span>
+<span class="sd">    par_steps : int</span>
+<span class="sd">        Number of times the parameter is updated during the sweep.</span>
+<span class="sd">    dpar : float</span>
+<span class="sd">        Size of the parameter increment per iteration. Use a positive value to increase</span>
+<span class="sd">        the parameter and a negative value to decrease it.</span>
+<span class="sd">    t_end : float</span>
+<span class="sd">        Length of the trajectory integrated at each iteration step.</span>
+<span class="sd">    dt : float</span>
+<span class="sd">        Step-size used for numerical integration.</span>
+<span class="sd">    delta : float, optional</span>
+<span class="sd">        Size of the region around the current ghost position (xg) in which to search</span>
+<span class="sd">        for xQmin (the point of minimum speed). Default is 0.5.</span>
+<span class="sd">    icStep : float, optional</span>
+<span class="sd">        Distance from xQmin at which to initialize a trajectory that will be analyzed</span>
+<span class="sd">        by GhostID. Default is 0.1.</span>
+<span class="sd">    mode : {&#39;first&#39;, &#39;closest&#39;}, optional</span>
+<span class="sd">        Strategy for selecting among multiple ghosts potentially identified along a</span>
+<span class="sd">        trajectory.</span>
+
+<span class="sd">        - &#39;first&#39; : take the first ghost found (default).</span>
+<span class="sd">        - &#39;closest&#39; : take the ghost closest in phase space to the current ghost</span>
+<span class="sd">        position (xg).</span>
+<span class="sd">    epsilon_gid : float, optional</span>
+<span class="sd">        Threshold parameter for GhostID (see section 1.1 of the paper). Default is 0.1.</span>
+<span class="sd">    solve_ivp_method : str, optional</span>
+<span class="sd">        Integration method passed to scipy.integrate.solve_ivp (e.g. &#39;RK45&#39;).</span>
+<span class="sd">        Default is &#39;RK45&#39;.</span>
+<span class="sd">    rtol : float, optional</span>
+<span class="sd">        Relative tolerance for the numerical integrator. Default is 1e-3.</span>
+<span class="sd">    atol : float, optional</span>
+<span class="sd">        Absolute tolerance for the numerical integrator. Default is 1e-6.</span>
+<span class="sd">    **kwargs</span>
+<span class="sd">        Optional keyword arguments:</span>
+
+<span class="sd">        distQminThr : float</span>
+<span class="sd">            Maximum allowable distance between the identified ghost and xQmin.</span>
+<span class="sd">            Any ghost candidate whose distance from xQmin exceeds this</span>
+<span class="sd">            threshold is rejected. Default is infinity (no constraint).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ghostPositions : array-like</span>
+<span class="sd">        Positions in phase space of the ghosts found at each parameter step.</span>
+<span class="sd">    parSeq : array-like</span>
+<span class="sd">        Sequence of parameter values at which each ghost was identified.</span>
+<span class="sd">    ghostSeq_p : list</span>
+<span class="sd">        Full list of ghost objects found at each parameter value, enabling extraction</span>
+<span class="sd">        of additional ghost properties beyond phase-space position.</span>
+<span class="sd">    control_plots : optional</span>
+<span class="sd">        Control plots for GhostID, returned only if the corresponding option is enabled.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    
+    <span class="c1"># Parse and validate kwargs</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">parse_kwargs</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    
+    <span class="n">display_warnings</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;display_warnings&#39;</span><span class="p">]</span>
+
+    <span class="c1"># Extract parameters from config</span>
+    <span class="n">delta_gid</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;delta_gid&#39;</span><span class="p">]</span>
+    <span class="n">peak_kwargs</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;peak_kwargs&#39;</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s2">&quot;width&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">peak_kwargs</span><span class="p">:</span>  
+        <span class="n">peak_kwargs</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">*</span> <span class="n">dt</span>   <span class="c1"># default if not supplied</span>
+    <span class="n">batchModel</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;batchModel&#39;</span><span class="p">]</span>
+    <span class="n">eigval_NN_sorting</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;eigval_NN_sorting&#39;</span><span class="p">]</span>
+    <span class="n">ev_outlier_removal_ws</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ev_outlier_removal_ws&#39;</span><span class="p">]</span>
+    <span class="n">ev_outlier_removal_k</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ev_outlier_removal_k&#39;</span><span class="p">]</span>
+    <span class="n">evLimit</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;evLimit&#39;</span><span class="p">]</span>
+    <span class="n">slopeLimits</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;slopeLimits&#39;</span><span class="p">]</span>
+    
+    <span class="c1"># Plotting control settings</span>
+    <span class="n">return_ctrl_figs</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;return_ctrl_figs&#39;</span><span class="p">]</span>
+    <span class="n">ctrlOutputs</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ctrlOutputs&quot;</span><span class="p">,</span> <span class="p">{})</span>
+
+    <span class="c1"># Q-min search related kwargs</span>
+    <span class="n">distQminThr</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;distQminThr&#39;</span><span class="p">]</span> 
+    <span class="n">qmin_glob_method</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;qmin_glob_method&#39;</span><span class="p">]</span>
+    <span class="n">qmin_loc_method</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;qmin_loc_method&#39;</span><span class="p">]</span>
+    <span class="n">qmin_glob_options</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;qmin_glob_options&#39;</span><span class="p">]</span> 
+    <span class="n">min_loc_options</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;qmin_loc_options&#39;</span><span class="p">]</span> 
+    
+    <span class="n">ghostSeq_p</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">ctrl_figures_p</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">parSeq</span> <span class="o">=</span> <span class="p">[]</span>
+    
+    <span class="n">parNext</span> <span class="o">=</span> <span class="n">model_params</span><span class="p">[</span><span class="n">par_nr</span><span class="p">]</span> 
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">model_params_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">model_params</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="n">model_params_</span> <span class="o">=</span> <span class="n">model_params</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="n">ghost_</span> <span class="o">=</span> <span class="n">ghost</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">with</span> <span class="n">tqdm</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">par_steps</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">as</span> <span class="n">pbar</span><span class="p">:</span>
+        <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">par_steps</span><span class="o">+</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">pct</span> <span class="o">=</span> <span class="mi">100</span> <span class="o">*</span> <span class="n">i</span> <span class="o">/</span> <span class="n">par_steps</span>
+            <span class="n">pbar</span><span class="o">.</span><span class="n">set_description</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Progress: </span><span class="si">{</span><span class="n">pct</span><span class="si">:</span><span class="s2">6.2f</span><span class="si">}</span><span class="s2">% | param value=</span><span class="si">{</span><span class="n">parNext</span><span class="si">:</span><span class="s2">.5f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            
+            <span class="n">x0</span> <span class="o">=</span> <span class="n">ghost_</span><span class="p">[</span><span class="s2">&quot;position&quot;</span><span class="p">]</span>
+            
+            <span class="n">qmin</span> <span class="o">=</span> <span class="n">find_local_Qminimum</span><span class="p">(</span><span class="n">model</span><span class="p">,</span><span class="n">x0</span><span class="p">,</span><span class="n">model_params_</span><span class="p">,</span><span class="n">delta</span><span class="p">,</span>
+                                       <span class="n">global_method</span><span class="o">=</span><span class="n">qmin_glob_method</span><span class="p">,</span>
+                                       <span class="n">local_method</span><span class="o">=</span><span class="n">qmin_loc_method</span><span class="p">,</span>
+                                       <span class="n">global_options</span><span class="o">=</span><span class="n">qmin_glob_options</span><span class="p">,</span> 
+                                       <span class="n">local_options</span><span class="o">=</span><span class="n">min_loc_options</span><span class="p">,</span>
+                                       <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                    
+            <span class="n">ic_plus</span><span class="p">,</span> <span class="n">_</span> <span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">icAtQmin</span><span class="p">(</span><span class="n">qmin</span><span class="p">,</span> <span class="n">icStep</span> <span class="p">,</span><span class="n">ghost_</span><span class="p">[</span><span class="s2">&quot;dimension&quot;</span><span class="p">],</span><span class="n">model</span><span class="p">,</span><span class="n">model_params_</span><span class="p">)</span>
+            <span class="n">ic_minus</span><span class="p">,</span> <span class="n">_</span> <span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">icAtQmin</span><span class="p">(</span><span class="n">qmin</span><span class="p">,</span> <span class="o">-</span><span class="n">icStep</span> <span class="p">,</span><span class="n">ghost_</span><span class="p">[</span><span class="s2">&quot;dimension&quot;</span><span class="p">],</span><span class="n">model</span><span class="p">,</span><span class="n">model_params_</span><span class="p">)</span>
+            
+            <span class="n">sol_plus</span> <span class="o">=</span> <span class="n">solve_ivp</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">5</span><span class="o">*</span><span class="n">dt</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">ic_plus</span><span class="p">),</span> <span class="n">t_eval</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="o">*</span><span class="n">dt</span><span class="p">,</span> <span class="n">dt</span><span class="p">)),</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">([</span><span class="n">model_params_</span><span class="p">]),</span> <span class="n">method</span><span class="o">=</span><span class="n">solve_ivp_method</span><span class="p">)</span> 
+            <span class="n">sol_minus</span> <span class="o">=</span> <span class="n">solve_ivp</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">5</span><span class="o">*</span><span class="n">dt</span><span class="p">),</span> <span class="n">jnp</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">ic_minus</span><span class="p">),</span> <span class="n">t_eval</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="o">*</span><span class="n">dt</span><span class="p">,</span> <span class="n">dt</span><span class="p">)),</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">([</span><span class="n">model_params_</span><span class="p">]),</span> <span class="n">method</span><span class="o">=</span><span class="n">solve_ivp_method</span><span class="p">)</span> 
+                
+            <span class="n">dist_ic_plus</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">qmin</span><span class="o">-</span><span class="n">ic_plus</span><span class="p">)</span>
+            <span class="n">dist_sol_plus</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">qmin</span><span class="o">-</span><span class="n">sol_plus</span><span class="o">.</span><span class="n">y</span><span class="p">[:,</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            
+            <span class="n">dist_ic_minus</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">qmin</span><span class="o">-</span><span class="n">ic_minus</span><span class="p">)</span>
+            <span class="n">dist_sol_minus</span><span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">qmin</span><span class="o">-</span><span class="n">sol_minus</span><span class="o">.</span><span class="n">y</span><span class="p">[:,</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                    
+            <span class="k">if</span> <span class="n">dist_sol_plus</span><span class="o">&lt;</span><span class="n">dist_ic_plus</span><span class="p">:</span>
+                <span class="n">ic_pick</span> <span class="o">=</span> <span class="n">ic_plus</span>
+            <span class="k">elif</span> <span class="n">dist_sol_minus</span><span class="o">&lt;</span><span class="n">dist_ic_minus</span><span class="p">:</span>
+                <span class="n">ic_pick</span> <span class="o">=</span> <span class="n">ic_minus</span>
+            <span class="k">else</span><span class="p">:</span> 
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Terminating track_ghost_branch: Error in chosing initial conditions around qmin (both trajectories are diverging). Try different global/local method/options for finding qmin or different icStep size.&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">return_ctrl_figs</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span>
+            
+            <span class="n">ic_pick</span> <span class="o">=</span> <span class="n">jnp</span><span class="o">.</span><span class="n">real</span><span class="p">(</span><span class="n">ic_pick</span><span class="p">)</span>
+        
+            <span class="n">sol</span> <span class="o">=</span> <span class="n">solve_ivp</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">t_end</span><span class="p">),</span> <span class="n">ic_pick</span><span class="p">,</span> <span class="n">t_eval</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t_end</span><span class="p">,</span> <span class="n">dt</span><span class="p">)),</span> <span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">([</span><span class="n">model_params_</span><span class="p">]),</span> <span class="n">method</span><span class="o">=</span><span class="n">solve_ivp_method</span><span class="p">)</span>
+            
+            <span class="n">gid_output</span> <span class="o">=</span> <span class="n">ghostID</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">model_params</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">sol</span><span class="o">.</span><span class="n">y</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+                           <span class="n">epsilon_gid</span><span class="p">,</span> <span class="n">delta_gid</span><span class="o">=</span><span class="n">delta_gid</span><span class="p">,</span><span class="n">peak_kwargs</span><span class="o">=</span><span class="n">peak_kwargs</span><span class="p">,</span>
+                           <span class="n">batchModel</span><span class="o">=</span><span class="n">batchModel</span><span class="p">,</span><span class="n">return_ctrl_figs</span><span class="o">=</span><span class="n">return_ctrl_figs</span><span class="p">,</span><span class="n">ctrlOutputs</span><span class="o">=</span><span class="n">ctrlOutputs</span><span class="p">,</span>
+                           <span class="n">evLimit</span><span class="o">=</span><span class="n">evLimit</span><span class="p">,</span><span class="n">slopeLimits</span><span class="o">=</span><span class="n">slopeLimits</span><span class="p">,</span><span class="n">eigval_NN_sorting</span><span class="o">=</span><span class="n">eigval_NN_sorting</span><span class="p">,</span>
+                           <span class="n">ev_outlier_removal_ws</span><span class="o">=</span><span class="n">ev_outlier_removal_ws</span><span class="p">,</span><span class="n">ev_outlier_removal_k</span><span class="o">=</span><span class="n">ev_outlier_removal_k</span><span class="p">,</span>
+                           <span class="n">display_warnings</span><span class="o">=</span><span class="n">display_warnings</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">return_ctrl_figs</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+                <span class="n">ghostSeq</span> <span class="o">=</span> <span class="n">gid_output</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">ghostSeq</span><span class="p">,</span> <span class="n">ctrl_figures</span> <span class="o">=</span> <span class="n">gid_output</span>
+                <span class="n">ctrl_figures_p</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ctrl_figures</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ghostSeq</span><span class="p">)</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+                
+                <span class="c1">#append</span>
+                <span class="k">if</span> <span class="n">mode</span><span class="o">==</span><span class="s2">&quot;first&quot;</span><span class="p">:</span>
+                    <span class="n">distance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">ghostSeq</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;position&quot;</span><span class="p">]</span><span class="o">-</span><span class="n">qmin</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">distance</span> <span class="o">&lt;</span> <span class="n">distQminThr</span><span class="p">:</span>
+                        <span class="n">ghostSeq_p</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ghostSeq</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                        <span class="n">parSeq</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parNext</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;closest&quot;</span><span class="p">:</span>
+                    <span class="n">positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ghostSeq</span><span class="p">[</span><span class="n">ii</span><span class="p">][</span><span class="s2">&quot;position&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ghostSeq</span><span class="p">))])</span>
+                    <span class="n">distances</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">positions</span><span class="o">-</span><span class="n">qmin</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="n">idx_min</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">distances</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">distances</span><span class="p">[</span><span class="n">idx_min</span><span class="p">]</span><span class="o">&lt;</span><span class="n">distQminThr</span><span class="p">:</span>
+                        <span class="n">ghostSeq_p</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ghostSeq</span><span class="p">[</span><span class="n">idx_min</span><span class="p">])</span>
+                        <span class="n">parSeq</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parNext</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Unknown mode argument. Use default mode instead.&quot;</span><span class="p">)</span>
+                    <span class="n">mode</span> <span class="o">=</span> <span class="s2">&quot;first&quot;</span>
+                    <span class="k">continue</span>
+                    
+                <span class="c1">#update</span>
+                <span class="n">parNext</span> <span class="o">=</span> <span class="n">parNext</span> <span class="o">+</span> <span class="n">dpar</span>
+                <span class="n">model_params_</span><span class="p">[</span><span class="n">par_nr</span><span class="p">]</span> <span class="o">=</span> <span class="n">parNext</span>
+                <span class="n">pbar</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">i</span><span class="o">+=</span><span class="mi">1</span>
+                
+            <span class="k">else</span><span class="p">:</span> 
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No further ghosts found.&quot;</span><span class="p">)</span>
+                <span class="k">break</span>
+        
+    <span class="n">ghostPositions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">([</span><span class="n">ghostSeq_p</span><span class="p">[</span><span class="n">ii</span><span class="p">][</span><span class="s2">&quot;position&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ghostSeq_p</span><span class="p">))])</span>
+    
+    <span class="k">if</span> <span class="n">return_ctrl_figs</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">ghostPositions</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">parSeq</span><span class="p">),</span> <span class="n">ghostSeq_p</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">ghostPositions</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">parSeq</span><span class="p">),</span> <span class="n">ghostSeq_p</span><span class="p">,</span> <span class="n">ctrl_figures_p</span></div>
+
+
+<div class="viewcode-block" id="ghost_connections">
+<a class="viewcode-back" href="../../api/PyGhostID.html#PyGhostID.ghost_connections">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">ghost_connections</span><span class="p">(</span><span class="n">gSeqs</span><span class="p">):</span>  
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Take a list of ghost sequences and turn it into an adjacency matrix.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    gSeqs : list</span>
+<span class="sd">        List of ghost sequences that have been generated by ghostID.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    adjM : ndarray</span>
+<span class="sd">        Adjacency matrix representing connections between identified ghosts in</span>
+<span class="sd">        phase space.</span>
+<span class="sd">    labels : list</span>
+<span class="sd">        Labels of the matrix rows/columns.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="n">labels</span> <span class="o">=</span> <span class="p">[]</span>
+    
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">gSeqs</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">s</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">i</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">][:</span><span class="mi">1</span><span class="p">]</span><span class="o">==</span><span class="s2">&quot;G&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">i</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
+                <span class="n">labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
+    
+    <span class="n">ng</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+    <span class="n">adjM</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">ng</span><span class="p">,</span><span class="n">ng</span><span class="p">))</span>
+    
+    <span class="n">seqIDs</span> <span class="o">=</span> <span class="p">[[</span><span class="n">g</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">s</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">gSeqs</span><span class="p">]</span>
+    
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">seqIDs</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+            <span class="n">e_out</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+            <span class="n">e_in</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">adjM</span><span class="p">[</span><span class="n">e_out</span><span class="p">,</span><span class="n">e_in</span><span class="p">]</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+                <span class="n">adjM</span><span class="p">[</span><span class="n">e_out</span><span class="p">,</span><span class="n">e_in</span><span class="p">]</span><span class="o">=</span><span class="mi">1</span>
+            
+    <span class="k">return</span> <span class="n">adjM</span><span class="p">,</span> <span class="n">labels</span></div>
+
+
+<div class="viewcode-block" id="unique_ghosts">
+<a class="viewcode-back" href="../../api/PyGhostID.html#PyGhostID.unique_ghosts">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">unique_ghosts</span><span class="p">(</span><span class="n">gSeq</span><span class="p">):</span>  
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Takes list of unified ghost sequences and returns a list of all unique ghosts</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="n">ghostIDs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">ghostsUnique</span> <span class="o">=</span> <span class="p">[]</span>
+    
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">gSeq</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">s</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">i</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">][:</span><span class="mi">1</span><span class="p">]</span><span class="o">==</span><span class="s2">&quot;G&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">i</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">ghostIDs</span><span class="p">:</span>
+                <span class="n">ghostIDs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
+                <span class="n">ghostsUnique</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">ghostsUnique</span></div>
+
+                    
+<div class="viewcode-block" id="unify_IDs">
+<a class="viewcode-back" href="../../api/PyGhostID.html#PyGhostID.unify_IDs">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">unify_IDs</span><span class="p">(</span><span class="n">seqs</span><span class="p">,</span> <span class="n">delta_unify</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">update</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Unify ids across multiple sequences of transient ghost state objects found in</span>
+<span class="sd">    timecourse simulations.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    seqs : ghostSeq (list of list of dict)</span>
+<span class="sd">        Each inner list corresponds to one simulation run. Each dict represents a</span>
+<span class="sd">        ghost state and must contain:</span>
+<span class="sd">        - &#39;position&#39; : ndarray</span>
+<span class="sd">            Phase-space position of the ghost.</span>
+<span class="sd">        - &#39;id&#39; : str</span>
+<span class="sd">            String of the form &#39;G{i}&#39;.</span>
+<span class="sd">        - &#39;q-value&#39; : float</span>
+<span class="sd">            Scalar quality / stability measure.</span>
+<span class="sd">        - &#39;dimension&#39; : int</span>
+<span class="sd">            Dimension associated with the ghost.</span>
+<span class="sd">    delta_unify : float, optional</span>
+<span class="sd">        Distance threshold below which two ghost states are considered identical</span>
+<span class="sd">        (i.e. the same ghost across runs). Default is 0.1.</span>
+<span class="sd">    update : bool, optional</span>
+<span class="sd">        If True, perform a second pass after ID unification that synchronizes</span>
+<span class="sd">        properties (position, q-value, dimension) across all ghosts sharing the</span>
+<span class="sd">        same ID. Default is True.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    seqs : list of list of dict</span>
+<span class="sd">        The same list structure, with unified IDs and (optionally) updated ghost</span>
+<span class="sd">        properties.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># STEP 1: Initialize reference ghosts from the first sequence</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="n">Seqs</span> <span class="o">=</span> <span class="n">seqs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">first</span> <span class="o">=</span> <span class="n">Seqs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># Dictionary mapping ghost ID -&gt; representative position</span>
+    <span class="n">known_G</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># Track the highest numerical ghost index encountered so far</span>
+    <span class="n">max_g</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">first</span><span class="p">:</span>
+        <span class="n">pid</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">pid</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;G&#39;</span><span class="p">):</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">pid</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>            <span class="c1"># extract numerical part of ID</span>
+            <span class="n">known_G</span><span class="p">[</span><span class="n">pid</span><span class="p">]</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">max_g</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">max_g</span><span class="p">,</span> <span class="n">idx</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized id &#39;</span><span class="si">{</span><span class="n">pid</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># STEP 2: Unify IDs across all subsequent sequences</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">for</span> <span class="n">seq</span> <span class="ow">in</span> <span class="n">Seqs</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+        <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">seq</span><span class="p">:</span>
+            <span class="n">pos</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">]</span>
+            <span class="n">orig</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">orig</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;G&#39;</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unrecognized id &#39;</span><span class="si">{</span><span class="n">orig</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+            <span class="c1"># Try to match this ghost against previously known ghosts</span>
+            <span class="n">matched</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">for</span> <span class="n">pid</span><span class="p">,</span> <span class="n">refpos</span> <span class="ow">in</span> <span class="n">known_G</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="c1"># Compare Euclidean distance in phase space</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">pos</span> <span class="o">-</span> <span class="n">refpos</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">delta_unify</span><span class="p">:</span>
+                    <span class="n">obj</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pid</span>         <span class="c1"># reuse existing ID</span>
+                    <span class="n">matched</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">break</span>
+
+            <span class="c1"># If no match was found, register a new ghost ID</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">matched</span><span class="p">:</span>
+                <span class="n">max_g</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">new_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;G</span><span class="si">{</span><span class="n">max_g</span><span class="si">}</span><span class="s1">&#39;</span>
+                <span class="n">obj</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_id</span>
+                <span class="n">known_G</span><span class="p">[</span><span class="n">new_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">pos</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># STEP 3 (optional): Update ghost properties across identical IDs</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">if</span> <span class="n">update</span><span class="p">:</span>
+        <span class="c1"># Collect all ghosts grouped by ID</span>
+        <span class="n">ghosts_by_id</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">seq</span> <span class="ow">in</span> <span class="n">Seqs</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">seq</span><span class="p">:</span>
+                <span class="n">gid</span> <span class="o">=</span> <span class="n">obj</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+                <span class="n">ghosts_by_id</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">gid</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+        <span class="c1"># For each ghost ID, synchronize properties</span>
+        <span class="k">for</span> <span class="n">gid</span><span class="p">,</span> <span class="n">ghosts</span> <span class="ow">in</span> <span class="n">ghosts_by_id</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># ----------------------------------------------------------</span>
+            <span class="c1"># (a) Find ghost with minimal q-value</span>
+            <span class="c1"># ----------------------------------------------------------</span>
+            <span class="n">missing</span> <span class="o">=</span> <span class="p">[</span><span class="n">o</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">ghosts</span> <span class="k">if</span> <span class="s1">&#39;q-value&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">o</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ghosts missing q-value for id </span><span class="si">{</span><span class="n">gid</span><span class="si">}</span><span class="s2">:&quot;</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">missing</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="n">ref</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">ghosts</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">o</span><span class="p">:</span> <span class="n">o</span><span class="p">[</span><span class="s1">&#39;q-value&#39;</span><span class="p">])</span>
+            <span class="n">ref_pos</span> <span class="o">=</span> <span class="n">ref</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">ref_q</span>   <span class="o">=</span> <span class="n">ref</span><span class="p">[</span><span class="s1">&#39;q-value&#39;</span><span class="p">]</span>
+
+            <span class="c1"># ----------------------------------------------------------</span>
+            <span class="c1"># (b) Find maximal dimension across ghosts with this ID</span>
+            <span class="c1"># ----------------------------------------------------------</span>
+            <span class="n">max_dim</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">o</span><span class="p">[</span><span class="s1">&#39;dimension&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">ghosts</span><span class="p">)</span>
+
+            <span class="c1"># ----------------------------------------------------------</span>
+            <span class="c1"># (c) Update all ghosts with synchronized values</span>
+            <span class="c1"># ----------------------------------------------------------</span>
+            <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">ghosts</span><span class="p">:</span>
+                <span class="n">o</span><span class="p">[</span><span class="s1">&#39;position&#39;</span><span class="p">]</span>  <span class="o">=</span> <span class="n">ref_pos</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="n">o</span><span class="p">[</span><span class="s1">&#39;q-value&#39;</span><span class="p">]</span>   <span class="o">=</span> <span class="n">ref_q</span>
+                <span class="n">o</span><span class="p">[</span><span class="s1">&#39;dimension&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">max_dim</span>
+
+    <span class="k">return</span> <span class="n">Seqs</span></div>
+
+
+<div class="viewcode-block" id="draw_network">
+<a class="viewcode-back" href="../../api/PyGhostID.html#PyGhostID.draw_network">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">draw_network</span><span class="p">(</span><span class="n">adj_matrix</span><span class="p">,</span> <span class="n">nodeCols</span><span class="p">,</span> <span class="n">nlbls</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;fdp&quot;</span><span class="p">,</span> <span class="n">graphviz_args</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">layout_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">rankdir</span><span class="o">=</span><span class="s2">&quot;TB&quot;</span><span class="p">,</span> <span class="n">node_size</span><span class="o">=</span><span class="mi">1800</span><span class="p">,</span> <span class="n">label_font_size</span><span class="o">=</span><span class="mf">16.5</span><span class="p">,</span>  <span class="n">font</span><span class="o">=</span><span class="s2">&quot;Arial&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    layout : str, optional</span>
+<span class="sd">        Layout algorithm used to draw the network.</span>
+
+<span class="sd">        Graphviz:</span>
+<span class="sd">            &#39;fdp&#39;, &#39;dot&#39;, &#39;neato&#39;, &#39;sfdp&#39;, &#39;circo&#39;</span>
+<span class="sd">        Semantic aliases:</span>
+<span class="sd">            &#39;hierarchical&#39; -&gt; Graphviz &#39;dot&#39;</span>
+<span class="sd">        NetworkX:</span>
+<span class="sd">            any nx.*_layout function (NOT nx.draw_*)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">layout_kwargs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">layout_kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="n">nw_dim</span> <span class="o">=</span> <span class="n">adj_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">G</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">from_numpy_array</span><span class="p">(</span><span class="n">adj_matrix</span><span class="o">.</span><span class="n">transpose</span><span class="p">(),</span> <span class="n">create_using</span><span class="o">=</span><span class="n">nx</span><span class="o">.</span><span class="n">DiGraph</span><span class="p">)</span>
+
+    <span class="c1"># --- Define edges ------------------------------------------------------</span>
+    <span class="n">inhEdges</span><span class="p">,</span> <span class="n">actEdges</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nw_dim</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nw_dim</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">adj_matrix</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">ii</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">G</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">ii</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">actEdges</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">i</span><span class="p">,</span> <span class="n">ii</span><span class="p">))</span>
+            <span class="k">elif</span> <span class="n">adj_matrix</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">ii</span><span class="p">]</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                <span class="n">G</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">ii</span><span class="p">,</span> <span class="n">weight</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">inhEdges</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">i</span><span class="p">,</span> <span class="n">ii</span><span class="p">))</span>
+
+    <span class="c1"># --- Layout handling ---------------------------------------------------</span>
+    <span class="k">if</span> <span class="n">graphviz_args</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">graphviz_args</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;-Grankdir=</span><span class="si">{</span><span class="n">rankdir</span><span class="si">}</span><span class="s2"> &quot;</span>
+            <span class="s2">&quot;-Nwidth=350 -Nheight=350 -Nfixedsize=true &quot;</span>
+            <span class="s2">&quot;-Goverlap=scale -Gnodesep=5000 -Granksep=200 &quot;</span>
+            <span class="s2">&quot;-Nshape=oval -Nfontsize=14 -Econstraint=true&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">layout</span> <span class="o">==</span> <span class="s2">&quot;hierarchical&quot;</span><span class="p">:</span>
+        <span class="n">layout</span> <span class="o">=</span> <span class="s2">&quot;dot&quot;</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">layout</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">graphviz_layout</span><span class="p">(</span><span class="n">G</span><span class="p">,</span> <span class="n">prog</span><span class="o">=</span><span class="n">layout</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="n">graphviz_args</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="nb">callable</span><span class="p">(</span><span class="n">layout</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">layout</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;draw_&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">layout</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> is a drawing function. &quot;</span>
+                <span class="s2">&quot;Use a layout function like nx.spectral_layout instead.&quot;</span>
+            <span class="p">)</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">layout</span><span class="p">(</span><span class="n">G</span><span class="p">,</span> <span class="o">**</span><span class="n">layout_kwargs</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;layout must be a string or a callable&quot;</span><span class="p">)</span>
+
+    <span class="c1"># --- Draw nodes --------------------------------------------------------</span>
+    <span class="n">node_opts</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;node_size&quot;</span><span class="p">:</span> <span class="n">node_size</span><span class="p">,</span>
+        <span class="s2">&quot;edgecolors&quot;</span><span class="p">:</span> <span class="s2">&quot;white&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">nx</span><span class="o">.</span><span class="n">draw_networkx_nodes</span><span class="p">(</span>
+        <span class="n">G</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">node_color</span><span class="o">=</span><span class="n">nodeCols</span><span class="p">,</span> <span class="o">**</span><span class="n">node_opts</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.90</span>
+    <span class="p">)</span>
+
+    <span class="c1"># --- Draw edges --------------------------------------------------------</span>
+    <span class="n">draw_custom_edges</span><span class="p">(</span>
+        <span class="n">G</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">actEdges</span><span class="p">,</span>
+        <span class="n">color</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="n">head_length</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">head_width</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+        <span class="n">width</span><span class="o">=</span><span class="mf">1.1</span><span class="p">,</span> <span class="n">trim_fraction</span><span class="o">=</span><span class="mf">0.2</span>
+    <span class="p">)</span>
+    <span class="n">draw_custom_edges</span><span class="p">(</span>
+        <span class="n">G</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">inhEdges</span><span class="p">,</span>
+        <span class="n">color</span><span class="o">=</span><span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="n">head_length</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">head_width</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+        <span class="n">width</span><span class="o">=</span><span class="mf">1.1</span><span class="p">,</span> <span class="n">trim_fraction</span><span class="o">=</span><span class="mf">0.2</span>
+    <span class="p">)</span>
+
+    <span class="c1"># --- Draw labels -------------------------------------------------------</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">nlbls</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nw_dim</span><span class="p">)}</span>
+    <span class="n">nx</span><span class="o">.</span><span class="n">draw_networkx_labels</span><span class="p">(</span>
+    <span class="n">G</span><span class="p">,</span>
+    <span class="n">pos</span><span class="p">,</span>
+    <span class="n">labels</span><span class="p">,</span>
+    <span class="n">font_size</span><span class="o">=</span><span class="n">label_font_size</span><span class="p">,</span>
+    <span class="n">font_weight</span><span class="o">=</span><span class="s2">&quot;bold&quot;</span><span class="p">,</span>
+    <span class="n">font_family</span><span class="o">=</span><span class="n">font</span><span class="p">,</span>
+<span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Daniel Koch.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

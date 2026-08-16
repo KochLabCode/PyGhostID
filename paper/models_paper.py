@@ -183,12 +183,6 @@ def egfr_phosphatase_model(t, z, para):
 
     return jnp.array([R_a_dot, P_DNF_a_dot])
 
-# def vanDerPol(t,z,para):
-#     eps=para
-#     dx=(1/eps)*(z[1]-(1/3)*z[0]**3+z[0])
-#     dy = -z[0]
-#     return jnp.array([dx, dy])
-
 def coupledThetaNeurons(t, z, para): # from Augustsson & Martens 2024, doi: 10.1063/5.0226338
     n,K,pS = para
     theta1_dot = 1-jnp.cos(z[0]+pS)+(1+jnp.cos(z[0]+pS))*(n+K*(1-jnp.cos(z[1]+pS))) 
@@ -201,31 +195,16 @@ def coupledThetaNeurons_nonident(t, z, para): # from Augustsson & Martens 2024, 
     theta2_dot = 1-jnp.cos(z[1]+pS)+(1+jnp.cos(z[1]+pS))*(n2+K*(1-jnp.cos(z[0]+pS))) 
     return jnp.array([theta1_dot,theta2_dot])
 
-def fromArray(t,p):
-    t_end,dt,arr = p
-    if t<t_end:
-        ni = int(t/dt)
-        return arr[ni]
-    return 0
-
-def coupledThetaNeurons_na(t, z, para): # from Augustsson & Martens 2024, doi: 10.1063/5.0226338
-    n,K,pS,p_inp = para
-
-    inp = fromArray(t,p_inp)
-  
-    theta1_dot = 1-jnp.cos(z[0]+pS)+(1+jnp.cos(z[0]+pS))*(n+K*(1-jnp.cos(z[1]+pS)) + inp) 
-    theta2_dot = 1-jnp.cos(z[1]+pS)+(1+jnp.cos(z[1]+pS))*(n+K*(1-jnp.cos(z[0]+pS))) 
-    
+def coupledThetaNeurons_nonident_na(z, t, para, g, pg): # from Augustsson & Martens 2024, doi: 10.1063/5.0226338
+    n1,n2,K,pS = para
+    # print(pg)
+    inp1 = g(t,pg[0])
+    inp2 = g(t,pg[1])
+    # print(t,inp1,inp2)
+    theta1_dot = 1-jnp.cos(z[0]+pS)+(1+jnp.cos(z[0]+pS))*(n1+K*(1-jnp.cos(z[1]+pS))+inp1) 
+    theta2_dot = 1-jnp.cos(z[1]+pS)+(1+jnp.cos(z[1]+pS))*(n2+K*(1-jnp.cos(z[0]+pS))+inp2) 
     return jnp.array([theta1_dot,theta2_dot])
 
-def singleThetaNeuron_na(t, z, para): # from Augustsson & Martens 2024, doi: 10.1063/5.0226338
-    n,pS,p_inp = para
-
-    inp = fromArray(t,p_inp)
-  
-    theta1_dot = 1-jnp.cos(z[0]+pS)+(1+jnp.cos(z[0]+pS))*(n + inp) 
-    
-    return jnp.array([theta1_dot])
 
 def wunderling_model(t, Z, para):
     Z = jnp.asarray(Z, dtype=jnp.float32)
@@ -240,72 +219,35 @@ def wunderling_model(t, Z, para):
 
     return jnp.array(dZdt) 
 
+def linear_model_na(t, y, p):
 
-# def wunderling_model_vectorized(t, Z, para):
-#     """
-#     Vectorized version using explicit broadcasting
-#     """
-#     Z = np.asarray(Z, dtype=np.float64)
-    
-#     # Unpack parameters
-#     d,GMT,Tcrits,Taus,mat_inter=para
-    
-#     # Ensure Z is at least 2D for consistent processing
-#     if Z.ndim == 1:
-#         Z = Z[np.newaxis, :]  # Convert to 2D with shape (1, n_vars)
-#         return_single = True
-#     else:
-#         return_single = False
-    
-#     # Calculate intrinsic term (works for any number of points)
-#     intrinsic = -Z**3 + Z + np.sqrt(4/27) * GMT / Tcrits
-    
-#     # Calculate coupling term using batch matrix multiplication
-#     # (Z + 1) has shape (n_points, n_vars)
-#     # mat_inter has shape (n_vars, n_vars)
-#     # Result should have shape (n_points, n_vars)
-#     coupling = d/10 * (Z + 1) @ mat_inter.T  # Equivalent to mat_inter @ (Z + 1)^T
-    
-#     dZdt = (intrinsic + coupling) / Taus
-    
-#     # Return to original shape if input was single point
-#     if return_single:
-#         return dZdt[0]  # Return 1D array
-#     else:
-#         return dZdt
+    d,GMT0,r,t_start,t_stop,Tcrits,Taus,mat_inter=p
 
-# def wunderling_model_vectorized(t, Z, para):
-#     """
-#     Vectorized version using explicit broadcasting
-#     """
-#     Z = np.asarray(Z, dtype=np.float64)
+    a = 2
+    k = 1000
+
+    Tcrit1, Tcrit2 = Tcrits
+    tau1, tau2 = Taus
+
+    x1, x2 = y
     
-#     # Unpack parameters
-#     d,GMT,Tcrits,Taus,mat_inter=para
-    
-#     # Ensure Z is at least 2D for consistent processing
-#     if Z.ndim == 1:
-#         Z = Z[np.newaxis, :]  # Convert to 2D with shape (1, n_vars)
-#         return_single = True
-#     else:
-#         return_single = False
-    
-#     # Calculate intrinsic term (works for any number of points)
-#     intrinsic = -Z**3 + Z + np.sqrt(4/27) * GMT / Tcrits
-    
-#     # Calculate coupling term using batch matrix multiplication
-#     # (Z + 1) has shape (n_points, n_vars)
-#     # mat_inter has shape (n_vars, n_vars)
-#     # Result should have shape (n_points, n_vars)
-#     coupling = d/10 * (Z + 1) @ mat_inter.T  # Equivalent to mat_inter @ (Z + 1)^T
-    
-#     dZdt = (intrinsic + coupling) / Taus
-    
-#     # Return to original shape if input was single point
-#     if return_single:
-#         return dZdt[0]  # Return 1D array
-#     else:
-#         return dZdt
+    dx1=(-(x1 - (a / (1 + np.exp(-k * (GMT(t,GMT0,r,t_start,t_stop) - Tcrit1))) - a/2)) + d*1*(x2+1)/10)/tau1
+    dx2=(-(x2 - (a / (1 + np.exp(-k * (GMT(t,GMT0,r,t_start,t_stop) - Tcrit2))) - a/2)) + d*1*(x1+1)/10)/tau2
+
+    return [dx1, dx2]
+
+def wunderling_model_na(t, Z, para):
+    Z = jnp.asarray(Z, dtype=jnp.float32)
+
+    d,GMT0,r,t_start,t_stop,Tcrits,Taus,mat_inter=para
+
+    intrinsic = -Z**3 + Z + np.sqrt(4/27)*GMT(t,GMT0,r,t_start,t_stop)/Tcrits
+    coupling = d/10* mat_inter @ (Z + 1) # Coupling effects: sum over j of C_ij * x_j
+
+    # Total derivative
+    dZdt = (intrinsic+coupling)/Taus
+
+    return jnp.array(dZdt) 
 
 
 def nullclines_Wunderling(para, x_range=(-2, 2), y_range=(-2, 2), resolution=200):
@@ -395,3 +337,17 @@ def vanDerPol(t,z,para):
     dx=(1/eps)*(z[1]-(1/3)*z[0]**3+z[0])
     dy = -z[0]
     return jnp.array([dx, dy])
+
+def saddle(t, z, para): 
+    v1,v2 = para
+    dx = v1*z[0]
+    dy = -v2*z[1]
+    return jnp.array([dx,dy])
+
+def saddle_na(z, t, para, g, pg):
+    v1,v2 = para
+    inp1 = g(t,pg[0])
+    inp2 = g(t,pg[1])
+    dx = v1*z[0]+inp1
+    dy = -v2*z[1]+inp2
+    return jnp.array([dx,dy])

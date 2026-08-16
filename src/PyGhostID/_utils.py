@@ -90,6 +90,8 @@ def sign_change(arr,OR,OR_ws,OR_k,**kwargs):
             if display_warnings:
                 print(f"Error in evaluating sign change of eigenvalues: monotonicity violated. {"Trying outlier removal..." if OR else ""}")
             tryOR = True
+            if sign_change_occured:
+                sign_change_occured = False
             break         
         # 2) detect the one negative→positive jump
         if prev < 0 and curr > 0:

@@ -1,9 +1,10 @@
 
 import numpy as np
-# from scipy.optimize import approx_fprime
+import random as rnd
 import jax 
 import jax.numpy as jnp
-
+from scipy.signal import find_peaks
+from scipy.ndimage import gaussian_filter
 
 def get_rcparams():
     params = {'legend.fontsize': 10,
@@ -169,6 +170,75 @@ def euklideanVelocity(x,dt):
         v = np.append(v, d/dt)
     return v
 
+def fromArray(t, p):
+    t_end, dt, arr = p
+    if t < t_end:
+        ni = int(t / dt)
+        return arr[ni]
+
+def OU(tau,sigma,t0,t_end,dt):
+    c = 2*sigma**2/tau
+    n =  int((t_end-t0)/dt)
+    s = [0]
+    for t in range(0,n-1):
+        s.append(s[t]-s[t]*dt/tau + np.random.normal()*c**0.5*dt**0.5)
+    return np.asarray(s)
+
+
+def generatePulseSignals(nr_of_pulses, pulse_dur, pause_dur, p_shuffle, t_first, t_end, p1 = 1, mode = 'binary',random_seed = None):
+    s = []
+    if random_seed is not None:
+        rnd.seed(random_seed)
+    for i in range(1,nr_of_pulses+1):
+        dice = rnd.random()
+        if dice < p_shuffle:
+            s_start = t_first+(i-1)*(pulse_dur+pause_dur)
+            s_stop = t_first+(i-1)*(pulse_dur+pause_dur)+pulse_dur
+            s.append(s_start)
+            s.append(s_stop)
+        else:
+            new_pos = rnd.randint(0, t_end)
+            s_start = new_pos 
+            s_stop = new_pos+pulse_dur
+            s.append(s_start)
+            s.append(s_stop)           
+    s.sort()
+    
+    if p1 == 1 and mode == 'binary':
+        return np.array(s)
+    elif p1 != 1 and mode == 'binary':
+        a = []
+        for i in range(nr_of_pulses):
+            dice = rnd.random()
+            if dice < p1:
+                a.append(1)
+            else:
+                a.append(-1)
+        return [np.array(s), np.array(a)]
+    elif mode == 'continuous':
+        a = []
+        for i in range(nr_of_pulses):
+            dice = rnd.random()
+            if dice < p1:
+                a.append(rnd.random())
+            else:
+                a.append(-rnd.random())
+        return [np.array(s), np.array(a)]
+
+
+def signal2array(sig,t_end,sz):
+    intvs, amps = sig
+    length = int(t_end/sz)
+    a = np.array([])
+    for i in range(length):
+        s = 0
+        for ii in range(0,len(intvs),2):
+            if i*sz >= intvs[ii] and i*sz <= intvs[ii+1]:
+                s = amps[int(ii/2)]
+        a = np.append(a,s)
+    return a
+
+
 def generate_peak_series(
     total_duration=10.0,   # Total time (arbitrary units)
     dt=0.001,              # Time step (arbitrary units)
@@ -240,51 +310,6 @@ def generate_peak_series(
 
     return t, signal
 
-
-def rankOrdering(arr):
-    arr = np.asarray(arr)
-    # Flatten, argsort twice to get ranks
-    ranks = arr.argsort().argsort().astype(float) + 1  # ranks start at 1
-    N = len(ranks)
-    # Map to (0, 1)
-    uniform = ranks / (N + 1)
-    # Shift to (-0.5, 0.5)
-    uniform_zero_mean = uniform - 0.5
-    return uniform_zero_mean.reshape(arr.shape)
-
-def mutualInformation(x,y,nbins,rank=False):
-    # Naive algorithm as described in Selbig et al. (2002):
-    # The mutual information: Detecting and evaluating dependencies between variables.
-    # Bioinformatics, Vol. 18 Suppl. 2, S231–S240
-    N = len(x)
-    
-    if rank == True:
-        x_=rankOrdering(x)
-        y_=rankOrdering(y)
-    else:
-        x_=x
-        y_=y
-        
-    x_range=[np.min(x_),np.max(x_)]
-    y_range=[np.min(y_),np.max(y_)]
-    
-    if N == len(y):
-        if N<10*nbins: print("Warning: Very few samples compared to bin numbers. Calculated mutual information may not be accurate!")
-        kh, xedges, yedges = np.histogram2d(x_,y_,nbins,range=[x_range,y_range])
-        sum_p = 0
-        for i in range(nbins):
-            for j in range(nbins):
-                if all([kh[i,j]!=0,np.nansum(kh[i,:])!=0,np.nansum(kh[:,j]!=0)]): # exclude empty bins
-                    sum_p += kh[i,j]*np.log2(kh[i,j]/(np.nansum(kh[i,:])*np.nansum(kh[:,j])))
-        MI = np.log2(N) + sum_p/N
-        
-        err_finSize = (nbins**2 - 2*nbins * 1)/(2*N) # estimated deviation from true MI
-        
-        return MI - err_finSize
-    else:
-        print("Error: x and y do not have the same size.")
-        return None, None
-    
 def spike_rate(binary_series, dt, window_size, step_size):
     """
     Compute spike rate over time using a moving window.
@@ -308,3 +333,114 @@ def spike_rate(binary_series, dt, window_size, step_size):
         rates.append(rate)
         times.append((start + end) / 2 * dt)
     return np.array(times), np.array(rates)
+
+
+def calc_rate(x, threshold, dt, k_rate=10):
+ 
+        N = x.shape[0]
+        peak_idxs = find_peaks(x, height=threshold,prominence=1)[0]
+
+        bin_arr = np.zeros(N)
+        bin_arr[peak_idxs] = 1
+
+        rate = gaussian_filter(bin_arr, sigma=1/k_rate/dt)        
+        rate *= 1/dt
+        
+        return rate
+
+def calc_MI_xy(x, x_bins, y, y_bins): 
+    # From https://github.com/emonetlab/bifurcation-temporal-information/blob/main/models/utils.py 
+    # See also Choi et al. 2024, https://doi.org/10.1103/PRXLife.2.043011
+
+    num_x_bins = len(x_bins)
+    dx = x_bins[1] - x_bins[0]
+    dy = y_bins[1] - y_bins[0]
+
+    # Bin the rates (Y) for a given stimulus (X = x) to get P(Y|X = x)
+    # H(Y|X) = sum_X P(X) sum_Y H(Y|X = x)
+    #          = sum_X P(X) sum_Y p(Y|X = x) log p(Y|X = x)
+    H_Y_X = 0
+    H_Y = 0
+    p_x, _ = np.histogram(x, x_bins, density=True)
+    p_x += 1e-8
+
+    # For each time in the stimulus, digitizes the stimulus into stim_bins
+    bin_vals = np.digitize(x, x_bins, right=True) - 1
+    
+    for iS in range(num_x_bins - 1):
+
+        # Get all times where the stimulus is in the iS'th bin
+        idxs_in_bin = np.where(bin_vals == iS)[0]
+        # idxs_in_bin = (bin_vals == iS)
+        
+        # Get rates for all times at which stim is in iS'th bin, histogram
+        if len(idxs_in_bin) > 0:
+            p_Y_x, _ = np.histogram(y[idxs_in_bin], y_bins, density=True)
+            H_y_x = -np.nansum(p_Y_x*np.log(p_Y_x)/np.log(2))*dy
+            if np.isfinite(H_y_x):
+                H_Y_X += p_x[iS]*H_y_x*dx
+    
+    # H(Y)
+    p_Y, _ = np.histogram(y, y_bins, density=True)
+    H_Y = -np.nansum(p_Y*np.log(p_Y)/np.log(2))*dy
+    MI = H_Y - H_Y_X
+    # print(MI)
+
+    return MI
+
+
+    
+def RK4_na_noisy(f,p,ICs,t0,dt,t_end, noiseVector, sigma=0, naFun = None,naFunParams = None,**kwargs):     # args: ODE system, parameters, initial conditions, starting time t0, dt, number of steps
+        
+        # using Euler-Maruyama method (https://en.wikipedia.org/wiki/Euler%E2%80%93Maruyama_method
+        
+        if 'multiplicative_noise' in kwargs:
+            multNoise = kwargs['multiplicative_noise']
+            # print(multNoise)
+        else:
+            multNoise = False
+
+        steps = int((t_end-t0)/dt)
+        dims = tuple([steps]+list(ICs.shape))
+        
+        x = np.zeros(dims)
+        t = np.zeros(steps,dtype=float)
+        x[0] = ICs
+        t[0] = t0
+        
+        if naFun != None and naFunParams != None:
+            for i in range(1,steps):
+                
+                t[i] = t0 + i*dt
+                # RK4 algorithm
+                k1 = f(x[i-1],t[i-1],p,naFun,naFunParams)*dt
+                k2 = f(x[i-1]+k1/2,t[i-1],p,naFun,naFunParams)*dt
+                k3 = f(x[i-1]+k2/2,t[i-1],p,naFun,naFunParams)*dt
+                k4 = f(x[i-1]+k3,t[i-1],p,naFun,naFunParams)*dt
+                x_next = x[i-1] + (k1+2*k2+2*k3+k4)/6
+                if multNoise == False:
+                    dW=sigma*np.sqrt(dt)*np.random.normal(size=x_next.shape)
+                    x[i,:] = x_next + dW*noiseVector 
+                else:
+                    dW=sigma*np.sqrt(dt*x[i-1])*np.random.normal(size=x_next.shape)
+                    # dW=sigma*np.sqrt(dt)*x[i-1]*np.random.normal(size=x_next.shape)
+                    x[i,:] = x_next + dW*noiseVector 
+                    
+        else:
+            for i in range(1,steps):
+                t[i] = t0 + i*dt
+                # RK4 algorithm
+                k1 = f(x[i-1],t[i-1],p)*dt
+                k2 = f(x[i-1]+k1/2,t[i-1],p)*dt
+                k3 = f(x[i-1]+k2/2,t[i-1],p)*dt
+                k4 = f(x[i-1]+k3,t[i-1],p)*dt
+                x_next = x[i-1] + (k1+2*k2+2*k3+k4)/6
+                if multNoise == False:
+                    dW=sigma*np.sqrt(dt)*np.random.normal(size=x_next.shape)
+                    x[i,:] = x_next + dW*noiseVector
+                else:
+                    dW=sigma*np.sqrt(dt*x[i-1])*np.random.normal(size=x_next.shape)
+                    # dW=sigma*np.sqrt(dt)*x[i-1]*np.random.normal(size=x_next.shape)
+                    x[i,:] = x_next + dW*noiseVector 
+            
+        return t,x.T    

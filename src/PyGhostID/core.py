@@ -33,7 +33,7 @@ from tqdm import tqdm
 
 def ghostID(model, params, dt, trajectory, epsilon_gid=0.05, **kwargs):
     
-    """ 
+    """
     Identify ghost states along a simulated trajectory by detecting Q-minima and
     evaluating the eigenvalue spectrum of the Jacobian along trajectory segments
     in their vicinity.
@@ -72,7 +72,7 @@ def ghostID(model, params, dt, trajectory, epsilon_gid=0.05, **kwargs):
             indirect method of ghost identification: a trajectory segment is
             considered to pass near a ghost if (1) the absolute value of the median
             of eigenvalues along the segment is below evLimit, (2) the linear fit of
-            eigenvalues has R² >= 0.99, and (3) the slope of the fit lies within the
+            eigenvalues has R^2 >= 0.99, and (3) the slope of the fit lies within the
             range given by slopeLimits.
         slopeLimits : array-like of length 2
             Upper and lower bounds for the eigenvalue slope used in the indirect
@@ -83,8 +83,8 @@ def ghostID(model, params, dt, trajectory, epsilon_gid=0.05, **kwargs):
             same model, avoiding repeated calls to make_batch_model. If not provided,
             ghostID constructs a batch model internally via make_batch_model.
 
-        Eigenvalue cleaning
-        -------------------
+        **Eigenvalue cleaning**
+
         Because eigenvalue indexing along a trajectory segment is not guaranteed to
         be consistent across consecutive time steps (i.e. lambda_1 at time t may be
         lambda_2 at time t+1), two complementary correction methods are available:
@@ -101,11 +101,11 @@ def ghostID(model, params, dt, trajectory, epsilon_gid=0.05, **kwargs):
             Size of the sliding window used for outlier detection. Default is 7.
         eigval_NN_sorting : bool
             If True, sorts eigenvalues across time for each index i using a
-            nearest-neighbour prediction. Useful when eigenvalue time-series appear 
+            nearest-neighbour prediction. Useful when eigenvalue time-series appear
             scattered or discontinuous. Default is False.
 
-        Control outputs
-        ---------------
+        **Control outputs**
+
         display_warnings : bool
             Show or suppress warning messages from GhostID.
         ctrlOutputs : dict
@@ -113,18 +113,18 @@ def ghostID(model, params, dt, trajectory, epsilon_gid=0.05, **kwargs):
             (pQ-values and eigenvalues). Recognised keys:
 
             ctrl_qplot (bool)       : plot pQ-values and detected Q-minima along
-                                      the trajectory.
+                                    the trajectory.
             qplot_xscale (str)      : x-axis scale for Q-plot, 'linear' (default)
-                                      or 'log'.
+                                    or 'log'.
             qplot_yscale (str)      : y-axis scale for Q-plot, 'linear' (default)
-                                      or 'log'.
+                                    or 'log'.
             ctrl_evplot (bool)      : plot eigenvalues along each trajectory segment
-                                      around identified Q-minima, including the
-                                      evaluation criteria listed in the plot heading.
+                                    around identified Q-minima, including the
+                                    evaluation criteria listed in the plot heading.
             evplot_xscale (str)     : x-axis scale for eigenvalue plot, 'linear'
-                                      (default) or 'log'.
+                                    (default) or 'log'.
             evplot_yscale (str)     : y-axis scale for eigenvalue plot, 'linear'
-                                      (default) or 'log'.
+                                    (default) or 'log'.
         return_ctrl_figs : bool
             If True, returns control plot figures for manual customisation instead
             of displaying them inline. Default is False.
@@ -135,7 +135,6 @@ def ghostID(model, params, dt, trajectory, epsilon_gid=0.05, **kwargs):
         List of identified ghost states, each represented as a Python dictionary.
     control_figures : optional
         Control plot figures, returned only if return_ctrl_figs is True.
-
     """
 
     # Parse and validate kwargs
@@ -571,12 +570,19 @@ def ghostID_phaseSpaceSample(model, model_params, t_start, t_end, dt, state_rang
 def make_batch_model(model, params):
     """
     Wrap a single-point model into a batch version using vmap.
-    
-    model: function (t, z, params) -> dz/dt
-    params: model parameters (passed unchanged)
-    
-    Returns: function (Zs, params) -> dZs/dt for batch input
-             where Zs has shape (num_points, n).
+
+    Parameters
+    ----------
+    model : callable
+        Function (t, z, params) -> dz/dt.
+    params : list or array-like
+        Model parameters (passed unchanged).
+
+    Returns
+    -------
+    batched : callable
+        Function (Zs, params) -> dZs/dt for batch input, where Zs has shape
+        (num_points, n).
     """
     def single(z):
         return model(0, z, params)   # ignore t (or pass if needed)
@@ -909,9 +915,10 @@ def track_ghost_branch(ghost, model, model_params, par_nr, par_steps, dpar, t_en
     mode : {'first', 'closest'}, optional
         Strategy for selecting among multiple ghosts potentially identified along a
         trajectory.
-        - 'first'   : take the first ghost found (default).
+
+        - 'first' : take the first ghost found (default).
         - 'closest' : take the ghost closest in phase space to the current ghost
-                      position (xg).
+        position (xg).
     epsilon_gid : float, optional
         Threshold parameter for GhostID (see section 1.1 of the paper). Default is 0.1.
     solve_ivp_method : str, optional
@@ -923,9 +930,11 @@ def track_ghost_branch(ghost, model, model_params, par_nr, par_steps, dpar, t_en
         Absolute tolerance for the numerical integrator. Default is 1e-6.
     **kwargs
         Optional keyword arguments:
-        - distQminThr (float): Maximum allowable distance between the identified ghost
-          and xQmin. Any ghost candidate whose distance from xQmin exceeds this
-          threshold is rejected. Default is infinity (no constraint).
+
+        distQminThr : float
+            Maximum allowable distance between the identified ghost and xQmin.
+            Any ghost candidate whose distance from xQmin exceeds this
+            threshold is rejected. Default is infinity (no constraint).
 
     Returns
     -------
@@ -1075,13 +1084,20 @@ def track_ghost_branch(ghost, model, model_params, par_nr, par_steps, dpar, t_en
 
 def ghost_connections(gSeqs):  
     """
-    Takes list of ghost sequences and turns it into an adjacency matrix.
+    Take a list of ghost sequences and turn it into an adjacency matrix.
 
-    Input:
-        - gSeq: list of ghost sequences that have been generated by ghostID
-    Output:
-        - adjM: adjecency matrix representing connections between identified ghosts in phase space
-        - labels: labels of matrix rows/columns
+    Parameters
+    ----------
+    gSeqs : list
+        List of ghost sequences that have been generated by ghostID.
+
+    Returns
+    -------
+    adjM : ndarray
+        Adjacency matrix representing connections between identified ghosts in
+        phase space.
+    labels : list
+        Labels of the matrix rows/columns.
     """
     
     labels = []
@@ -1123,32 +1139,35 @@ def unique_ghosts(gSeq):
                     
 def unify_IDs(seqs, delta_unify=0.1, update=True):
     """
-    Unify ids across multiple sequences of transient ghost state objects found in timecourse simulations.
+    Unify ids across multiple sequences of transient ghost state objects found in
+    timecourse simulations.
 
     Parameters
     ----------
-    Seqs : list[list[dict]]
-        Each inner list corresponds to one simulation run.
-        Each dict represents a ghost state and must contain:
-            - 'position'  : np.ndarray, phase-space position of the ghost
-            - 'id'        : str of the form 'G{i}'
-            - 'q-value'   : float, scalar quality / stability measure
-            - 'dimension' : int, dimension associated with the ghost
-
-    delta_gid : float, optional
-        Distance threshold below which two ghost states are considered
-        identical (i.e. the same ghost across runs).
-
-    update : bool, optional (default=True)
-        If True, perform a second pass after ID unification that
-        synchronizes properties (position, q-value, dimension)
-        across all ghosts sharing the same ID.
+    seqs : ghostSeq (list of list of dict)
+        Each inner list corresponds to one simulation run. Each dict represents a
+        ghost state and must contain:
+        - 'position' : ndarray
+            Phase-space position of the ghost.
+        - 'id' : str
+            String of the form 'G{i}'.
+        - 'q-value' : float
+            Scalar quality / stability measure.
+        - 'dimension' : int
+            Dimension associated with the ghost.
+    delta_unify : float, optional
+        Distance threshold below which two ghost states are considered identical
+        (i.e. the same ghost across runs). Default is 0.1.
+    update : bool, optional
+        If True, perform a second pass after ID unification that synchronizes
+        properties (position, q-value, dimension) across all ghosts sharing the
+        same ID. Default is True.
 
     Returns
     -------
-    Seqs : list[list[dict]]
-        The same list structure, with unified IDs and (optionally)
-        updated ghost properties.
+    seqs : list of list of dict
+        The same list structure, with unified IDs and (optionally) updated ghost
+        properties.
     """
 
     # ------------------------------------------------------------------
@@ -1244,14 +1263,17 @@ def unify_IDs(seqs, delta_unify=0.1, update=True):
 
 def draw_network(adj_matrix, nodeCols, nlbls, layout="fdp", graphviz_args=None, layout_kwargs=None, rankdir="TB", node_size=1800, label_font_size=16.5,  font="Arial"):
     """
-    layout options
-    --------------
-    Graphviz:
-        'fdp', 'dot', 'neato', 'sfdp', 'circo'
-    Semantic aliases:
-        'hierarchical' -> Graphviz 'dot'
-    NetworkX:
-        any nx.*_layout function (NOT nx.draw_*)
+    Parameters
+    ----------
+    layout : str, optional
+        Layout algorithm used to draw the network.
+
+        Graphviz:
+            'fdp', 'dot', 'neato', 'sfdp', 'circo'
+        Semantic aliases:
+            'hierarchical' -> Graphviz 'dot'
+        NetworkX:
+            any nx.*_layout function (NOT nx.draw_*)
     """
 
     if layout_kwargs is None:
