@@ -19,7 +19,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Overview" href="overview.html" /> 
+    <link rel="next" title="Quickstart" href="quickstart.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -43,7 +43,6 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials.html">Tutorials</a></li>
 <li class="toctree-l1"><a class="reference internal" href="changelog.html">Changelog</a></li>
@@ -76,18 +75,35 @@
              
   <section class="tex2jax_ignore mathjax_ignore" id="welcome-to-pyghostid-s-documentation">
 <h1>Welcome to PyGhostID’s documentation!<a class="headerlink" href="#welcome-to-pyghostid-s-documentation" title="Link to this heading"></a></h1>
-<p>PyGhostID is a Python package for identifying ghosts near saddle-node
-bifurcations and composite ghost structures in dynamical systems.</p>
+<section id="background">
+<h2>Background<a class="headerlink" href="#background" title="Link to this heading"></a></h2>
+<p>PyGhostID is a Python package for identifying generalized saddle-node ghosts in the vicinity of saddle-node bifurcations and their composite ghost structures such as ghost channels and ghost cycles in dynamical systems. PyGhostID’s main function is the implementation of <strong>GhostID</strong>, a trajectory-based algorithm to identify saddle-node ghosts in dynamical systems. Besides the main algorithm, additional functions allow users to identify composite structures of ghosts (<a class="reference external" href="https://doi.org/10.1103/PhysRevLett.133.047202">ghost cycles, channels and networks</a>) and track ghosts versus changing parameters.</p>
+<p><img alt="Figure1" src="_images/PyGhostID.png" />
+<strong>Figure 1</strong>: (a) flow-diagram of ghostID, (b) data associated with ghost states, (c) functionalities of the PyGhostID package.</p>
+</section>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<p>Install the latest version of PyGhostID via pip:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>PyGhostID
+</pre></div>
+</div>
+</section>
+<section id="contact">
+<h2>Contact<a class="headerlink" href="#contact" title="Link to this heading"></a></h2>
+<p>For questions or additional information, please write to <a class="reference external" href="mailto:daniel&#46;koch&#37;&#52;&#48;umanitoba&#46;ca">daniel<span>&#46;</span>koch<span>&#64;</span>umanitoba<span>&#46;</span>ca</a>.</p>
+</section>
+<section id="related-publication">
+<h2>Related Publication<a class="headerlink" href="#related-publication" title="Link to this heading"></a></h2>
+<p>The theory behind PyGhostID and some applications can be found in our research article:</p>
+<p><a class="reference external" href="http://arxiv.org/abs/2604.05194">Daniel Koch, Akhilesh Nandan (2026). Generalized saddle-node ghosts and their composite structures in dynamical systems. arxiv: 2604.05194.</a></p>
+<p>All results from the paper can be reproduced using the code available on <a class="reference external" href="https://github.com/KochLabCode/PyGhostID">github</a>.</p>
+<p>If you use PyGhostID or its repository in your research, please cite our paper!</p>
+</section>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="overview.html#background">Background</a></li>
-<li class="toctree-l2"><a class="reference internal" href="overview.html#installation">Installation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="overview.html#contact">Contact</a></li>
-<li class="toctree-l2"><a class="reference internal" href="overview.html#citation">Citation</a></li>
-</ul>
-</li>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="tutorials.html">Tutorials</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="tutorials.html#tutorial-1-ghostid-parameter-optimization-and-trouble-shooting">Tutorial 1 - ghostID parameter optimization and trouble-shooting</a></li>
@@ -106,12 +122,13 @@ bifurcations and composite ghost structures in dynamical systems.</p>
 </ul>
 </div>
 </section>
+</section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="overview.html" class="btn btn-neutral float-right" title="Overview" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="quickstart.html" class="btn btn-neutral float-right" title="Quickstart" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
